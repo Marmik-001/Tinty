@@ -190,16 +190,17 @@
    * Constructs the main stylesheet string based on theme mode (builtin/vscode, image, or combo).
    *
    * @param {Object} theme - Active theme definition object.
+   * @param {boolean} [forceDarkBg=false] - When true, skips text color rules (JS handles contrast).
    * @returns {string} Complete CSS stylesheet content.
    */
-  function buildCSS(theme) {
+  function buildCSS(theme, forceDarkBg) {
     if (!theme) return "";
 
     // Plain background image mode (no syntax theme attached)
     if (theme.type === "image") {
       const fg = theme.fg || "#f0f0f0";
       const link = theme.link || "#8ab4f8";
-      return `
+      let css = `
         html, body, ${APP_ROOT_SELECTOR} {
           background-image: url("${escapeForCss(theme.dataUrl)}") !important;
           background-size: cover !important;
@@ -211,12 +212,18 @@
           background-color: rgba(0,0,0,0.55) !important;
           background-blend-mode: darken !important;
         }
-        body, p, li, span, article, section, main, header, footer,
-        aside, td, th, label, blockquote, h1, h2, h3, h4, h5, h6 {
-          color: ${fg} !important;
-        }
-        a, a:visited { color: ${link} !important; }
       `;
+      // Only set text colors if NOT in force-dark mode (JS handles contrast there)
+      if (!forceDarkBg) {
+        css += `
+          body, p, li, span, article, section, main, header, footer,
+          aside, td, th, label, blockquote, h1, h2, h3, h4, h5, h6 {
+            color: ${fg} !important;
+          }
+          a, a:visited { color: ${link} !important; }
+        `;
+      }
+      return css;
     }
 
     const bg = theme.bg || "#1e1e1e";
@@ -248,19 +255,30 @@
           }
         `;
 
-    const pageCSS = `
+    let pageCSS = `
       ${buildSiteProfileCSS(theme)}
       ${backgroundCSS}
-      body, p, li, span, article, section, main, header, footer,
-      aside, td, th, label, blockquote {
-        color: ${fg} !important;
-      }
-      h1, h2, h3, h4, h5, h6 {
-        color: ${accent} !important;
-      }
-      a, a:visited {
-        color: ${link} !important;
-      }
+    `;
+
+    // Only set text colors if NOT in force-dark mode.
+    // In force-dark mode, page keeps its original text colors and
+    // recolorTextForContrast() fixes only the elements that actually need it.
+    if (!forceDarkBg) {
+      pageCSS += `
+        body, p, li, span, article, section, main, header, footer,
+        aside, td, th, label, blockquote {
+          color: ${fg} !important;
+        }
+        h1, h2, h3, h4, h5, h6 {
+          color: ${accent} !important;
+        }
+        a, a:visited {
+          color: ${link} !important;
+        }
+      `;
+    }
+
+    pageCSS += `
       code, pre {
         background-color: ${codeBg} !important;
         color: ${fg} !important;
@@ -294,6 +312,63 @@
     m = str.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
     if (m) return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
     return null;
+  }
+
+  // --- Universal Color Resolver (Canvas-based) ---
+
+  /** @type {HTMLCanvasElement|null} Reusable 1x1 canvas for color resolution. */
+  var _resolveCanvas = null;
+  /** @type {CanvasRenderingContext2D|null} Reusable canvas context. */
+  var _resolveCtx = null;
+  /** @type {Object} Cache of resolved color strings → RGB arrays. */
+  var _resolveCache = {};
+
+  /**
+   * Resolves ANY CSS color string (including lab(), oklch(), color(), hsl(), etc.)
+   * into an [r, g, b] array by rendering it to a 1×1 Canvas and reading the pixel.
+   * Results are cached for performance.
+   *
+   * Falls through to parseCssColor first for speed on simple hex/rgb values.
+   *
+   * @param {string} colorStr - Any valid CSS color string.
+   * @returns {Array<number>|null} [r, g, b] array (0-255) or null if invalid/transparent.
+   */
+  function resolveColor(colorStr) {
+    if (!colorStr || colorStr === 'transparent' || colorStr === 'rgba(0, 0, 0, 0)') return null;
+
+    // Fast path: try standard parser first
+    var fast = parseCssColor(colorStr);
+    if (fast) return fast;
+
+    // Check cache
+    if (colorStr in _resolveCache) return _resolveCache[colorStr];
+
+    // Canvas fallback: renders the color and reads the pixel
+    try {
+      if (!_resolveCanvas) {
+        _resolveCanvas = document.createElement('canvas');
+        _resolveCanvas.width = 1;
+        _resolveCanvas.height = 1;
+        _resolveCtx = _resolveCanvas.getContext('2d', { willReadFrequently: true });
+      }
+      // Reset to known opaque state
+      _resolveCtx.clearRect(0, 0, 1, 1);
+      _resolveCtx.fillStyle = '#000';
+      _resolveCtx.fillStyle = colorStr;
+      _resolveCtx.fillRect(0, 0, 1, 1);
+      var data = _resolveCtx.getImageData(0, 0, 1, 1).data;
+      // Alpha 0 = transparent / invalid color
+      if (data[3] === 0) {
+        _resolveCache[colorStr] = null;
+        return null;
+      }
+      var result = [data[0], data[1], data[2]];
+      _resolveCache[colorStr] = result;
+      return result;
+    } catch (e) {
+      _resolveCache[colorStr] = null;
+      return null;
+    }
   }
 
   /**
@@ -501,7 +576,7 @@
       }
       if (!computed || computed === 'transparent' || computed === 'rgba(0, 0, 0, 0)') return;
 
-      var rgb = parseCssColor(computed);
+      var rgb = resolveColor(computed);
       if (!rgb) return;
 
       var hsl = rgbToHsl(rgb);
@@ -599,7 +674,7 @@
         return null;
       }
       if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
-        var rgb = parseCssColor(bg);
+        var rgb = resolveColor(bg);
         if (rgb) return rgb;
       }
       current = current.parentElement;
@@ -629,53 +704,45 @@
   }
 
   /**
-   * Finds the best theme color for a text element by:
-   * 1. Finding the closest theme palette color to the original text color (hue distance)
-   * 2. Checking WCAG contrast ratio against the element's effective background
-   * 3. If contrast is insufficient (<4.5:1), trying alternatives sorted by hue distance
-   * 4. As a last resort, using theme.fg (guaranteed readable on theme.bg)
+   * Finds the best readable color from the theme palette for text on a given background.
+   * Tries theme.fg first (most common), then palette colors by contrast ratio,
+   * then falls back to near-black or near-white based on background luminance.
    *
-   * @param {Array<number>} originalRgb - Original text color RGB.
    * @param {Array<number>} bgRgb - Effective background color RGB.
    * @param {Array<Object>} palette - Theme color palette from buildFullPalette().
-   * @param {string} fallback - Fallback color (theme.fg).
-   * @returns {string} Best theme color hex string.
+   * @returns {string} Best readable color hex string.
    */
-  function findContrastSafeColor(originalRgb, bgRgb, palette, fallback) {
-    if (palette.length === 0) return fallback;
-
-    var originalHsl = rgbToHsl(originalRgb);
-
-    // Sort palette entries by hue distance from original color
-    var sorted = palette.slice().sort(function (a, b) {
-      return hueDistance(originalHsl.h, a.hsl.h) - hueDistance(originalHsl.h, b.hsl.h);
-    });
-
-    // Try each candidate in order of closeness, pick first with sufficient contrast
-    for (var i = 0; i < sorted.length; i++) {
-      if (contrastRatio(sorted[i].rgb, bgRgb) >= 4.5) {
-        return sorted[i].color;
+  function findBestContrastColor(bgRgb, palette) {
+    // Try theme.fg first (preferred primary text color)
+    for (var i = 0; i < palette.length; i++) {
+      if (palette[i].name === 'fg' && contrastRatio(palette[i].rgb, bgRgb) >= 4.5) {
+        return palette[i].color;
       }
     }
 
-    // No palette color has sufficient contrast against this background.
-    // Use luminance-based fallback: dark text on light bg, light text on dark bg.
-    var bgLum = relativeLuminance(bgRgb);
-    if (bgLum > 0.4) {
-      // Light background → use dark text (near-black)
-      return '#111111';
-    } else {
-      // Dark background → use theme.fg or near-white
-      return fallback;
+    // Try all palette colors, pick the one with highest contrast
+    var best = null;
+    var bestRatio = 0;
+    for (var j = 0; j < palette.length; j++) {
+      var ratio = contrastRatio(palette[j].rgb, bgRgb);
+      if (ratio >= 4.5 && ratio > bestRatio) {
+        best = palette[j].color;
+        bestRatio = ratio;
+      }
     }
+    if (best) return best;
+
+    // No palette color works — luminance-based fallback (guaranteed readable)
+    var bgLum = relativeLuminance(bgRgb);
+    return bgLum > 0.4 ? '#111111' : '#f0f0f0';
   }
 
   /**
-   * Scans text elements and recolors them using contrast-aware theme color mapping.
-   * For each element:
-   * 1. Reads the original (computed) text color
-   * 2. Determines the effective background color (walking up ancestors)
-   * 3. Maps to the closest theme color that passes WCAG AA contrast (4.5:1)
+   * Scans text elements and ensures each has sufficient contrast against its
+   * effective background. Only intervenes on elements where contrast is actually
+   * bad — leaves everything else untouched.
+   *
+   * This runs AFTER overrideLightBackgrounds, so it sees the post-override state.
    *
    * @param {Object} theme - Active theme definition object.
    */
@@ -683,7 +750,6 @@
     if (!theme) return;
 
     var palette = buildFullPalette(theme);
-    var fallback = theme.fg || '#d4d4d4';
 
     var elements;
     try {
@@ -692,8 +758,7 @@
       return;
     }
 
-    // Cache: map original computed color → best theme color per background
-    // Key: "originalColor|bgColor"
+    // Cache: bgColor string → best color (avoids re-computation for same bg)
     var colorCache = {};
 
     elements.forEach(function (el) {
@@ -709,7 +774,6 @@
       if (el.getAttribute('aria-hidden') === 'true') return;
 
       // Skip elements with no direct text content (icon wrapper spans, badge containers)
-      // These use CSS ::before/::after or background-image for their visuals
       var hasDirectText = false;
       for (var n = 0; n < el.childNodes.length; n++) {
         if (el.childNodes[n].nodeType === 3 && el.childNodes[n].textContent.trim()) {
@@ -719,29 +783,34 @@
       }
       if (!hasDirectText) return;
 
-      // Read original text color (before our override)
-      var original = el.getAttribute(TEXT_ORIG_ATTR);
-      if (!original) {
-        try {
-          original = getComputedStyle(el).color;
-        } catch (e) {
-          return;
-        }
-        if (!original) return;
-        el.setAttribute(TEXT_ORIG_ATTR, original);
+      // Read CURRENT text color (whatever it is right now — original or themed)
+      var currentColorStr;
+      try {
+        currentColorStr = getComputedStyle(el).color;
+      } catch (e) {
+        return;
       }
+      if (!currentColorStr) return;
 
-      var originalRgb = parseCssColor(original);
-      if (!originalRgb) return;
+      var currentRgb = resolveColor(currentColorStr);
+      if (!currentRgb) return;
 
-      // Get effective background this text sits on
+      // Get effective background this text sits on (post-override)
       var bgRgb = getEffectiveBackground(el);
       if (!bgRgb) return;
 
-      // Check cache
-      var cacheKey = original + '|' + bgRgb.join(',');
+      // If current contrast is already good, leave it alone
+      if (contrastRatio(currentRgb, bgRgb) >= 4.5) return;
+
+      // Contrast is bad — store original for restoration and fix it
+      if (!el.hasAttribute(TEXT_ORIG_ATTR)) {
+        el.setAttribute(TEXT_ORIG_ATTR, currentColorStr);
+      }
+
+      // Find best color with good contrast against this background
+      var cacheKey = bgRgb.join(',');
       if (!(cacheKey in colorCache)) {
-        colorCache[cacheKey] = findContrastSafeColor(originalRgb, bgRgb, palette, fallback);
+        colorCache[cacheKey] = findBestContrastColor(bgRgb, palette);
       }
 
       el.style.setProperty('color', colorCache[cacheKey], 'important');
@@ -866,7 +935,7 @@
 
     const style = document.createElement("style");
     style.id = STYLE_ID;
-    style.textContent = buildCSS(settings.theme);
+    style.textContent = buildCSS(settings.theme, settings.forceDarkBg);
     (document.head || document.documentElement).appendChild(style);
     ensureHeadObserver();
 
