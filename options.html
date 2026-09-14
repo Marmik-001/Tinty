@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ThemeReader Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>ThemeReader Settings</h1>
+      <p class="subtitle">
+        Upload and name themes or background images here. Once saved, they
+        show up in the toolbar popup's dropdown on this computer — no need
+        to re-upload the file again.
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>Add a VS Code theme</h2>
+      <label class="field">
+        <span>Name</span>
+        <input type="text" id="themeName" placeholder="e.g. My Dracula" />
+      </label>
+      <label class="field">
+        <span>Theme file (.json)</span>
+        <input type="file" id="themeFile" accept=".json,application/json" />
+      </label>
+      <p id="themeStatus" class="status"></p>
+      <button id="saveThemeBtn">Save theme</button>
+    </section>
+
+    <section class="card">
+      <h2>Add a background image</h2>
+      <label class="field">
+        <span>Name</span>
+        <input type="text" id="imageName" placeholder="e.g. My desktop wallpaper" />
+      </label>
+      <label class="field">
+        <span>Image file</span>
+        <input type="file" id="imageFile" accept="image/*" />
+      </label>
+      <p id="imageStatus" class="status"></p>
+      <button id="saveImageBtn">Save image</button>
+    </section>
+
+    <section class="card">
+      <h2>Background + theme combo <span class="badge">Experimental</span></h2>
+      <p class="hint">
+        A plain background image only keeps basic text/link colors — this
+        keeps everything: syntax highlighting, heading colors, code blocks,
+        all from a real theme, layered over your image instead of a flat
+        color.
+      </p>
+      <label class="field">
+        <span>Name</span>
+        <input type="text" id="comboName" placeholder="e.g. Dracula over my wallpaper" />
+      </label>
+      <label class="field">
+        <span>Background image</span>
+        <input type="file" id="comboFile" accept="image/*" />
+      </label>
+      <label class="field">
+        <span>Theme to use for colors</span>
+        <select id="comboThemeSelect"></select>
+      </label>
+      <p id="comboStatus" class="status"></p>
+      <button id="saveComboBtn">Save combo</button>
+    </section>
+
+    <section class="card">
+      <h2>Your saved themes &amp; images</h2>
+      <p class="hint" id="emptyHint">
+        Nothing saved yet — anything you add above will appear here, and in
+        the toolbar popup's theme dropdown.
+      </p>
+      <ul id="savedList" class="saved-list"></ul>
+    </section>
+  </div>
+
+  <script src="theme-parser.js"></script>
+  <script src="builtin-themes.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

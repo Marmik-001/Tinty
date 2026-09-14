@@ -1,0 +1,118 @@
+body {
+  width: 300px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  margin: 0;
+  padding: 14px;
+  font-size: 13px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+h1 {
+  font-size: 15px;
+  margin: 0;
+}
+
+h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9da5b4;
+  margin: 14px 0 6px;
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.site-row {
+  background: #252526;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+}
+
+.option {
+  display: block;
+  margin: 8px 0 2px;
+  cursor: pointer;
+}
+
+select,
+input[type="file"] {
+  width: 100%;
+  margin-bottom: 4px;
+  background: #2d2d2d;
+  color: #d4d4d4;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+button#saveBtn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: #4daafc;
+  color: #06121f;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button#saveBtn:hover {
+  filter: brightness(1.08);
+}
+
+button.secondary {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  background: transparent;
+  color: #d4d4d4;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+button.secondary:hover {
+  background: #2d2d2d;
+}
+
+#status {
+  min-height: 16px;
+  font-size: 12px;
+  color: #89d185;
+  margin: 8px 0 0;
+}
+
+footer {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #6a6a6a;
+}
+
+.force-dark-row {
+  margin-top: 4px;
+}
+
+.hint {
+  display: block;
+  font-size: 10px;
+  color: #6a6a6a;
+  margin-top: 2px;
+  padding-left: 18px;
+}

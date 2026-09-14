@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "ThemeReader — Browse pages in your VS Code theme",
+  "version": "0.7.0",
+  "description": "Recolors the pages you read using your own VS Code theme (or a built-in palette / background image) for a consistent, easier-on-the-eyes reading experience.",
+  "permissions": ["storage", "activeTab", "unlimitedStorage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ThemeReader"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

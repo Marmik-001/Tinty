@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ThemeReader</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <h1>ThemeReader</h1>
+    <label class="switch">
+      <input type="checkbox" id="enabledToggle" />
+      <span>Enabled</span>
+    </label>
+  </header>
+
+  <section class="site-row">
+    <label>
+      <input type="checkbox" id="disableSiteToggle" />
+      Disable on <strong id="currentHost">this site</strong>
+    </label>
+  </section>
+
+  <section class="site-row force-dark-row">
+    <label>
+      <input type="checkbox" id="forceDarkBgToggle" />
+      Force dark backgrounds
+    </label>
+    <span class="hint">Fix invisible text on light-themed sites</span>
+  </section>
+
+  <section>
+    <h2>Theme</h2>
+    <select id="themeSelect">
+      <optgroup label="Built-in — Dark" id="builtinDarkGroup"></optgroup>
+      <optgroup label="Built-in — Light" id="builtinLightGroup"></optgroup>
+      <optgroup label="Your saved themes" id="customGroup"></optgroup>
+    </select>
+    <p id="status"></p>
+  </section>
+
+  <button id="openSettingsBtn" class="secondary">
+    + Add / manage your own themes &amp; images
+  </button>
+
+  <footer>
+    <span id="themeNameLabel"></span>
+  </footer>
+
+  <script src="builtin-themes.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
