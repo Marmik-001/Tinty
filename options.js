@@ -245,9 +245,12 @@ saveImageBtn.addEventListener("click", () => {
     setStatus(imageStatus, "Choose an image file.", "error");
     return;
   }
-  if (file.size > 3 * 1024 * 1024) {
-    setStatus(imageStatus, "That image is over 3MB — pick something smaller.", "error");
+  if (file.size > 12 * 1024 * 1024) {
+    setStatus(imageStatus, "That image is over 12MB — pick something smaller.", "error");
     return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    setStatus(imageStatus, "⚠️ Large image (>5MB) — may slow down the extension or hit storage limits. Proceeding anyway...", "warn");
   }
   const reader = new FileReader();
   reader.onload = () => {
@@ -295,9 +298,12 @@ saveComboBtn.addEventListener("click", () => {
     setStatus(comboStatus, "Pick a theme for the colors.", "error");
     return;
   }
-  if (file.size > 3 * 1024 * 1024) {
-    setStatus(comboStatus, "That image is over 3MB — pick something smaller.", "error");
+  if (file.size > 12 * 1024 * 1024) {
+    setStatus(comboStatus, "That image is over 12MB — pick something smaller.", "error");
     return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    setStatus(comboStatus, "⚠️ Large image (>5MB) — may slow down the extension or hit storage limits. Proceeding anyway...", "warn");
   }
 
   const [kind, id] = selected.split(":");

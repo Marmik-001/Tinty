@@ -119,6 +119,10 @@ button.danger {
   color: #89d185;
 }
 
+.status.warn {
+  color: #e8a838;
+}
+
 .hint {
   color: #6a6a6a;
   font-size: 13px;

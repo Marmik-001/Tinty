@@ -190,17 +190,16 @@
    * Constructs the main stylesheet string based on theme mode (builtin/vscode, image, or combo).
    *
    * @param {Object} theme - Active theme definition object.
-   * @param {boolean} [forceDarkBg=false] - When true, skips text color rules (JS handles contrast).
    * @returns {string} Complete CSS stylesheet content.
    */
-  function buildCSS(theme, forceDarkBg) {
+  function buildCSS(theme) {
     if (!theme) return "";
 
     // Plain background image mode (no syntax theme attached)
     if (theme.type === "image") {
       const fg = theme.fg || "#f0f0f0";
       const link = theme.link || "#8ab4f8";
-      let css = `
+      return `
         html, body, ${APP_ROOT_SELECTOR} {
           background-image: url("${escapeForCss(theme.dataUrl)}") !important;
           background-size: cover !important;
@@ -212,18 +211,12 @@
           background-color: rgba(0,0,0,0.55) !important;
           background-blend-mode: darken !important;
         }
+        body, p, li, span, article, section, main, header, footer,
+        aside, td, th, label, blockquote, h1, h2, h3, h4, h5, h6 {
+          color: ${fg} !important;
+        }
+        a, a:visited { color: ${link} !important; }
       `;
-      // Only set text colors if NOT in force-dark mode (JS handles contrast there)
-      if (!forceDarkBg) {
-        css += `
-          body, p, li, span, article, section, main, header, footer,
-          aside, td, th, label, blockquote, h1, h2, h3, h4, h5, h6 {
-            color: ${fg} !important;
-          }
-          a, a:visited { color: ${link} !important; }
-        `;
-      }
-      return css;
     }
 
     const bg = theme.bg || "#1e1e1e";
@@ -255,30 +248,19 @@
           }
         `;
 
-    let pageCSS = `
+    const pageCSS = `
       ${buildSiteProfileCSS(theme)}
       ${backgroundCSS}
-    `;
-
-    // Only set text colors if NOT in force-dark mode.
-    // In force-dark mode, page keeps its original text colors and
-    // recolorTextForContrast() fixes only the elements that actually need it.
-    if (!forceDarkBg) {
-      pageCSS += `
-        body, p, li, span, article, section, main, header, footer,
-        aside, td, th, label, blockquote {
-          color: ${fg} !important;
-        }
-        h1, h2, h3, h4, h5, h6 {
-          color: ${accent} !important;
-        }
-        a, a:visited {
-          color: ${link} !important;
-        }
-      `;
-    }
-
-    pageCSS += `
+      body, p, li, span, article, section, main, header, footer,
+      aside, td, th, label, blockquote {
+        color: ${fg} !important;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        color: ${accent} !important;
+      }
+      a, a:visited {
+        color: ${link} !important;
+      }
       code, pre {
         background-color: ${codeBg} !important;
         color: ${fg} !important;
@@ -935,7 +917,7 @@
 
     const style = document.createElement("style");
     style.id = STYLE_ID;
-    style.textContent = buildCSS(settings.theme, settings.forceDarkBg);
+    style.textContent = buildCSS(settings.theme);
     (document.head || document.documentElement).appendChild(style);
     ensureHeadObserver();
 
