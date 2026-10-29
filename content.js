@@ -35,8 +35,17 @@
   /** @type {string} DOM attribute marking elements modified by corner fix strategies. */
   const CORNER_FIX_ATTR = 'data-vstr-corner-fix';
 
+  /** @type {string} DOM attribute marking elements recolored by Option 1 Luminance Check. */
+  const LUMINANCE_FIX_ATTR = 'data-vstr-lum-fix';
+
+  /** @type {string} Element ID for Option 2 Scoped CSS stylesheet. */
+  const SCOPED_CSS_FIX_ID = 'vstr-lightmode-scoped-css';
+
+  /** @type {string} DOM attribute marking elements modified by Option 3 Adaptive Surface Mapping. */
+  const ADAPTIVE_SURFACE_ATTR = 'data-vstr-adaptive-surface';
+
   /** @type {string} CSS selector for text-bearing elements to scan during contrast recoloring. */
-  const TEXT_SELECTOR = 'p, li, span, h1, h2, h3, h4, h5, h6, a, td, th, label, blockquote, dt, dd, figcaption, summary, strong, em, b, i, small, mark, del, ins, sub, sup';
+  const TEXT_SELECTOR = 'p, li, span, h1, h2, h3, h4, h5, h6, a, td, th, label, blockquote, dt, dd, figcaption, summary, strong, em, b, i, small, mark, del, ins, sub, sup, div';
 
   /**
    * Sanitizes a Base64 data URL for safe inclusion in CSS `url("...")` rules.
@@ -939,6 +948,289 @@
     });
   }
 
+  // --- Option 1: Contrast-Aware Luminance Check (Dynamic DOM) ---
+
+  /**
+   * Option 1: Contrast-Aware Luminance Check.
+   * Walks text elements and evaluates their effective background.
+   * If the effective background is light (relative luminance > 0.4), overrides the text color
+   * with a readable dark tone (#111827 for normal text, #0969da for links, #0f172a for headings)
+   * so text on white/light cards is crisp and legible without modifying the card backgrounds.
+   * If the effective background is dark (<= 0.4), theme light text applies naturally.
+   *
+   * @param {Object} theme - Active theme definition object.
+   */
+  function applyLuminanceFix(theme) {
+    if (!theme) return;
+
+    var elements;
+    try {
+      elements = document.querySelectorAll(TEXT_SELECTOR);
+    } catch (e) {
+      return;
+    }
+
+    elements.forEach(function (el) {
+      // Skip code blocks (handled by syntax highlighting)
+      try {
+        if (el.closest('pre, code')) return;
+      } catch (e) {
+        return;
+      }
+
+      // Skip icons or aria-hidden elements
+      if (el.getAttribute('role') === 'img' || el.getAttribute('aria-hidden') === 'true') return;
+
+      // Check if element has direct text content
+      var hasDirectText = false;
+      for (var n = 0; n < el.childNodes.length; n++) {
+        if (el.childNodes[n].nodeType === 3 && el.childNodes[n].textContent.trim()) {
+          hasDirectText = true;
+          break;
+        }
+      }
+      if (!hasDirectText) return;
+
+      var bgRgb = getEffectiveBackground(el);
+      if (!bgRgb) return;
+
+      var lum = relativeLuminance(bgRgb);
+
+      if (lum > 0.4) {
+        // Effective background is light! Text MUST be dark to be legible.
+        if (!el.hasAttribute(LUMINANCE_FIX_ATTR)) {
+          var prevInline = el.style.getPropertyValue('color');
+          var prevPrio = el.style.getPropertyPriority('color');
+          el.setAttribute(LUMINANCE_FIX_ATTR, (prevPrio ? '!important:' : '') + (prevInline || '__NONE__'));
+        }
+        var isLink = el.tagName === 'A' || el.closest('a');
+        var isHeading = /^H[1-6]$/i.test(el.tagName);
+        var targetColor = isLink ? '#0969da' : (isHeading ? '#0f172a' : '#111827');
+        el.style.setProperty('color', targetColor, 'important');
+      } else {
+        // Effective background is dark. If it was previously marked by luminance fix, restore it.
+        if (el.hasAttribute(LUMINANCE_FIX_ATTR)) {
+          var saved = el.getAttribute(LUMINANCE_FIX_ATTR);
+          if (saved && saved !== '__NONE__') {
+            if (saved.startsWith('!important:')) {
+              el.style.setProperty('color', saved.slice(11), 'important');
+            } else {
+              el.style.setProperty('color', saved);
+            }
+          } else {
+            el.style.removeProperty('color');
+          }
+          el.removeAttribute(LUMINANCE_FIX_ATTR);
+        }
+      }
+    });
+  }
+
+  /**
+   * Restores original text colors for elements modified by Option 1 Luminance Check.
+   */
+  function restoreLuminanceFix() {
+    var marked;
+    try {
+      marked = document.querySelectorAll('[' + LUMINANCE_FIX_ATTR + ']');
+    } catch (e) {
+      return;
+    }
+    marked.forEach(function (el) {
+      var saved = el.getAttribute(LUMINANCE_FIX_ATTR);
+      if (saved && saved !== '__NONE__') {
+        if (saved.startsWith('!important:')) {
+          el.style.setProperty('color', saved.slice(11), 'important');
+        } else {
+          el.style.setProperty('color', saved);
+        }
+      } else {
+        el.style.removeProperty('color');
+      }
+      el.removeAttribute(LUMINANCE_FIX_ATTR);
+    });
+  }
+
+  // --- Option 2: Scoped CSS & Dark Scheme (Pure CSS) ---
+
+  /**
+   * Option 2: Scoped CSS & Dark Scheme.
+   * Injects declarative CSS rules with :root { color-scheme: dark !important; } and scopes
+   * text colors inside explicit light/white containers so they remain readable dark text.
+   *
+   * @param {Object} theme - Active theme definition object.
+   */
+  function applyScopedCssFix(theme) {
+    var existing = document.getElementById(SCOPED_CSS_FIX_ID);
+    if (existing) existing.remove();
+
+    var linkColor = '#0969da';
+    var textColor = '#111827';
+    var headingColor = '#0f172a';
+
+    var css = `
+      /* Option 2: Declarative color-scheme switch for modern sites */
+      :root, html {
+        color-scheme: dark !important;
+      }
+
+      /* Explicit light/white surface classes and inline background attributes */
+      [class*="bg-white"], [class*="bg-light"], [class*="card-white"],
+      [class*="bg-gray-50"], [class*="bg-gray-100"], [class*="bg-neutral-50"],
+      [class*="bg-slate-50"], [class*="bg-slate-100"], [class*="bg-zinc-50"], [class*="bg-zinc-100"],
+      [style*="background: rgb(255"], [style*="background: #fff"], [style*="background: white"],
+      [style*="background-color: rgb(255"], [style*="background-color: #fff"], [style*="background-color: white"],
+      [style*="background-color: rgb(250"], [style*="background-color: rgb(24"],
+      .c-docs-page, .theme-doc-markdown, .article-content, .markdown-body.light {
+        color: ${textColor} !important;
+      }
+
+      /* Descendant text inside light containers */
+      [class*="bg-white"] p, [class*="bg-white"] li, [class*="bg-white"] span, [class*="bg-white"] div,
+      [class*="bg-white"] td, [class*="bg-white"] th, [class*="bg-white"] label,
+      [class*="bg-light"] p, [class*="bg-light"] li, [class*="bg-light"] span, [class*="bg-light"] div,
+      [style*="background: rgb(255"] p, [style*="background: rgb(255"] span, [style*="background: rgb(255"] li,
+      [style*="background-color: rgb(255"] p, [style*="background-color: rgb(255"] span, [style*="background-color: rgb(255"] li,
+      [style*="background: #fff"] p, [style*="background: #fff"] span, [style*="background: #fff"] li,
+      [style*="background-color: #fff"] p, [style*="background-color: #fff"] span, [style*="background-color: #fff"] li,
+      [style*="background: white"] p, [style*="background: white"] span, [style*="background: white"] li,
+      [style*="background-color: white"] p, [style*="background-color: white"] span, [style*="background-color: white"] li {
+        color: ${textColor} !important;
+      }
+
+      [class*="bg-white"] h1, [class*="bg-white"] h2, [class*="bg-white"] h3,
+      [class*="bg-white"] h4, [class*="bg-white"] h5, [class*="bg-white"] h6,
+      [style*="background-color: rgb(255"] h1, [style*="background-color: rgb(255"] h2, [style*="background-color: rgb(255"] h3 {
+        color: ${headingColor} !important;
+      }
+
+      [class*="bg-white"] a, [class*="bg-light"] a,
+      [style*="background-color: rgb(255"] a, [style*="background-color: #fff"] a, [style*="background-color: white"] a {
+        color: ${linkColor} !important;
+      }
+    `;
+
+    var style = document.createElement('style');
+    style.id = SCOPED_CSS_FIX_ID;
+    style.textContent = css;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  /**
+   * Restores original state by removing the Option 2 Scoped CSS stylesheet.
+   */
+  function restoreScopedCssFix() {
+    var existing = document.getElementById(SCOPED_CSS_FIX_ID);
+    if (existing) existing.remove();
+  }
+
+  // --- Option 3: Adaptive Surface Mapping (Layered Darkening) ---
+
+  /**
+   * Option 3: Adaptive Surface Mapping.
+   * Maps light containers into layered VS Code dark surfaces (base editor background,
+   * card/widget surface, and borders) instead of flattening all containers.
+   *
+   * @param {Object} theme - Active theme definition object.
+   */
+  function applyAdaptiveSurfaceMapping(theme) {
+    if (!theme) return;
+
+    var containers;
+    try {
+      containers = document.querySelectorAll(CONTAINER_SELECTOR);
+    } catch (e) {
+      return;
+    }
+
+    var baseBg = theme.bg || '#1e1e1e';
+    var cardBg = theme.codeBg || '#252526';
+    var borderColor = theme.border || '#3c3c3c';
+    var isImageOrCombo = theme.type === 'image' || theme.type === 'combo';
+
+    containers.forEach(function (el) {
+      if (el.hasAttribute(ADAPTIVE_SURFACE_ATTR)) return;
+      if (el === document.body || el === document.documentElement) return;
+
+      var computed;
+      try {
+        computed = getComputedStyle(el);
+      } catch (e) {
+        return;
+      }
+
+      var bg = computed.backgroundColor;
+      if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') return;
+
+      var rgb = resolveColor(bg);
+      if (!rgb) return;
+
+      var hsl = rgbToHsl(rgb);
+      if (hsl.l > 0.65) {
+        var radius = parseFloat(computed.borderRadius) || 0;
+        var hasShadow = computed.boxShadow && computed.boxShadow !== 'none';
+        var hasBorder = parseFloat(computed.borderWidth) || 0;
+        var isCard = radius > 2 || hasShadow || hasBorder > 0 ||
+          el.matches('.card, [class*="card"], [class*="panel"], [class*="dialog"], [class*="modal"], [class*="dropdown"], [class*="popup"], table, tr, td, th, aside, nav, article');
+
+        var prevBg = el.style.getPropertyValue('background-color');
+        var prevBorder = el.style.getPropertyValue('border-color');
+
+        el.setAttribute(ADAPTIVE_SURFACE_ATTR, JSON.stringify({
+          bg: prevBg,
+          border: prevBorder
+        }));
+
+        if (isImageOrCombo) {
+          if (isCard) {
+            el.style.setProperty('background-color', 'rgba(30, 30, 30, 0.75)', 'important');
+            if (hasBorder > 0) el.style.setProperty('border-color', borderColor, 'important');
+          } else {
+            el.style.setProperty('background-color', 'transparent', 'important');
+          }
+        } else {
+          if (isCard) {
+            el.style.setProperty('background-color', cardBg, 'important');
+            if (hasBorder > 0) el.style.setProperty('border-color', borderColor, 'important');
+          } else {
+            el.style.setProperty('background-color', baseBg, 'important');
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Restores original backgrounds and borders modified by Option 3 Adaptive Surface Mapping.
+   */
+  function restoreAdaptiveSurfaces() {
+    var marked;
+    try {
+      marked = document.querySelectorAll('[' + ADAPTIVE_SURFACE_ATTR + ']');
+    } catch (e) {
+      return;
+    }
+    marked.forEach(function (el) {
+      try {
+        var data = JSON.parse(el.getAttribute(ADAPTIVE_SURFACE_ATTR) || '{}');
+        if (data.bg) {
+          el.style.setProperty('background-color', data.bg);
+        } else {
+          el.style.removeProperty('background-color');
+        }
+        if (data.border) {
+          el.style.setProperty('border-color', data.border);
+        } else {
+          el.style.removeProperty('border-color');
+        }
+      } catch (e) {
+        el.style.removeProperty('background-color');
+        el.style.removeProperty('border-color');
+      }
+      el.removeAttribute(ADAPTIVE_SURFACE_ATTR);
+    });
+  }
+
   // --- Top-Down Cascade Anti-Artifact Pass ---
 
   /** @type {string} CSS selector for container elements to scan for intermediate wrappers. */
@@ -1069,10 +1361,10 @@
    * Starts a MutationObserver on document.body to handle dynamically added elements.
    *
    * @param {Object} theme - Active theme definition object.
-   * @param {boolean} forceDarkBg - Whether force dark backgrounds is enabled.
+   * @param {string} lightModeFix - Active light mode readability fix mode ('none', 'luminance', 'scoped-css', 'adaptive').
    * @param {boolean} enableCascade - Whether top-down cascade fix is enabled.
    */
-  function startBodyObserver(theme, forceDarkBg, enableCascade) {
+  function startBodyObserver(theme, lightModeFix, enableCascade) {
     stopBodyObserver();
     if (!document.body) return;
 
@@ -1081,9 +1373,10 @@
       // Debounce to avoid thrashing on rapid DOM changes
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(function () {
-        if (forceDarkBg) {
-          overrideLightBackgrounds(theme);
-          recolorTextForContrast(theme);
+        if (lightModeFix === 'luminance') {
+          applyLuminanceFix(theme);
+        } else if (lightModeFix === 'adaptive') {
+          applyAdaptiveSurfaceMapping(theme);
         }
         restoreCornerFixes(theme);
         if (enableCascade) cornerFixCascade(theme);
@@ -1156,6 +1449,9 @@
 
     if (!shouldApply) {
       restoreInlineColoredCodeBlocks();
+      restoreLuminanceFix();
+      restoreScopedCssFix();
+      restoreAdaptiveSurfaces();
       restoreForcedDarkBackgrounds();
       restoreRecoloredText();
       restoreCornerFixes(settings ? settings.theme : null);
@@ -1171,13 +1467,25 @@
 
     remapInlineColoredCodeBlocks(settings.theme);
 
-    // Force dark backgrounds on light-themed sites (opt-in)
-    if (settings.forceDarkBg) {
-      overrideLightBackgrounds(settings.theme);
-      recolorTextForContrast(settings.theme);
-    } else {
-      restoreForcedDarkBackgrounds();
-      restoreRecoloredText();
+    // Clean up any previously applied light-page readability fixes
+    restoreLuminanceFix();
+    restoreScopedCssFix();
+    restoreAdaptiveSurfaces();
+    restoreForcedDarkBackgrounds();
+    restoreRecoloredText();
+
+    // Determine active light mode readability fix strategy
+    var lightModeFix = settings.lightModeFix;
+    if (!lightModeFix) {
+      lightModeFix = settings.forceDarkBg ? "adaptive" : "none";
+    }
+
+    if (lightModeFix === "luminance") {
+      applyLuminanceFix(settings.theme);
+    } else if (lightModeFix === "scoped-css") {
+      applyScopedCssFix(settings.theme);
+    } else if (lightModeFix === "adaptive") {
+      applyAdaptiveSurfaceMapping(settings.theme);
     }
 
     // Top-down cascade anti-artifact pass (default enabled)
@@ -1187,9 +1495,9 @@
       cornerFixCascade(settings.theme);
     }
 
-    // Keep body observer active if force-dark or cascade fix is enabled
-    if (settings.forceDarkBg || enableCascade) {
-      startBodyObserver(settings.theme, !!settings.forceDarkBg, enableCascade);
+    // Keep body observer active if dynamic fix or cascade fix is enabled
+    if (lightModeFix === "luminance" || lightModeFix === "adaptive" || enableCascade) {
+      startBodyObserver(settings.theme, lightModeFix, enableCascade);
     } else {
       stopBodyObserver();
     }
@@ -1201,7 +1509,7 @@
   function loadAndApply() {
     try {
       if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) return;
-      chrome.storage.local.get(["enabled", "disabledSites", "theme", "forceDarkBg", "cascadeFix"], (settings) => {
+      chrome.storage.local.get(["enabled", "disabledSites", "theme", "forceDarkBg", "cascadeFix", "lightModeFix"], (settings) => {
         if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.lastError) return;
         applySettings(settings);
       });

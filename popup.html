@@ -21,12 +21,17 @@
     </label>
   </section>
 
-  <section class="site-row force-dark-row">
-    <label>
-      <input type="checkbox" id="forceDarkBgToggle" />
-      Force dark backgrounds
+  <section class="site-row light-mode-fix-row">
+    <label for="lightModeFixSelect" style="display: block; font-weight: 500; margin-bottom: 4px;">
+      Light page readability:
     </label>
-    <span class="hint">Fix invisible text on light-themed sites</span>
+    <select id="lightModeFixSelect">
+      <option value="none">Off (No fix)</option>
+      <option value="luminance">1. Luminance Check (Dynamic contrast)</option>
+      <option value="scoped-css">2. Scoped CSS &amp; Dark Scheme</option>
+      <option value="adaptive">3. Adaptive Surface Mapping</option>
+    </select>
+    <span class="hint" id="lightModeFixHint">Prevents invisible text on white containers</span>
   </section>
 
   <section class="site-row">

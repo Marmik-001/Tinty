@@ -55,7 +55,22 @@ This document outlines key technical improvements, architectural refactorings, p
     - Apply `backdrop-filter: blur(...)` and subtle translucent background overlays (`rgba(..., 0.3)`) directly to the outer container or leaf card clusters.
     - Ensure leaf cards, buttons, and text contrast are preserved.
 
-### B. Accessibility & WCAG Contrast Safety Checker
+### B. Light-Themed Website Readability & Testing Options
+- **Context**: On light-themed sites with nested white containers (Gmail, Cloudflare docs, Wikipedia), ThemeReader's global text override can render light text on top of white intermediate containers, causing 1:1 contrast (invisible text).
+- **Implemented 3 Decoupled Testing Strategies** in the popup dropdown (`Light page readability`):
+  1. **Option 1: Luminance Check (Dynamic contrast)**:
+     - Scans text elements, evaluates the nearest opaque background's relative luminance ($L$).
+     - If $L > 0.4$ (light container), sets high-contrast dark text (`#111827`, `#0969da` for links, `#0f172a` for headings). If $L \le 0.4$, lets theme light text render.
+     - Leaves page containers untouched.
+  2. **Option 2: Scoped CSS & Dark Scheme (Pure CSS)**:
+     - Injects `:root, html { color-scheme: dark !important; }` to trigger modern sites' native dark tokens.
+     - Scopes text styling with higher specificity rules targeting `.bg-white`, `.bg-light`, and explicit white inline backgrounds to maintain dark text inside them without JS DOM writes.
+  3. **Option 3: Adaptive Surface Mapping (Layered Darkening)**:
+     - Detects containers with lightness $> 65\%$.
+     - Rather than flattening everything to `theme.bg`, it hierarchically maps card/widget surfaces to `theme.codeBg`, borders to `theme.border`, and outer wrappers to `theme.bg`.
+- **Testing Workflow**: Select each option from the popup dropdown to compare visual quality and performance across different light pages before finalizing the primary approach.
+
+### C. Accessibility & WCAG Contrast Safety Checker
 - **Feature Idea**: Automatically verify readability ratio between `fg` (foreground) and `bg` (background) using WCAG 2.1 contrast math ($(\text{L1} + 0.05) / (\text{L2} + 0.05)$).
 - **Behavior**: If a user-uploaded VS Code theme yields a contrast ratio below `4.5:1` (WCAG AA minimum for standard text), automatically adjust text brightness or display a warning in the Settings tab.
 
