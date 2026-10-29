@@ -75,26 +75,68 @@
         "--yt-spec-general-background-a": (t.type === "image" || t.type === "combo") ? "transparent" : (t.bg || "#1e1e1e"),
       }),
       rules: (t) => `
-        /* YouTube: neutralize ambient mode (cinematics) bottom vignette bleed below video */
+        /* YouTube: neutralize all ambient mode (cinematics) bottom vignette overlays */
         #cinematics::after,
-        ytd-watch-flexy[cinematics-enabled] #cinematics::after {
+        #cinematics-container::after,
+        ytd-cinematics::after,
+        [id="cinematics"]::after,
+        [id="cinematics"] > *::after {
           background: transparent !important;
+          background-image: none !important;
           display: none !important;
         }
 
-        /* YouTube: remove black background bleed under video player container */
+        /* YouTube: remove black background bleed under player wrappers in both grid and flexy layouts */
+        #player,
+        #ytd-player,
+        #player-container,
         #player-container-outer,
         #player-container-inner,
-        #player-container,
-        ytd-player#ytd-player {
+        #full-bleed-container,
+        #player-full-bleed-container,
+        #player-theater-container,
+        ytd-player {
+          background: transparent !important;
           background-color: transparent !important;
         }
 
-        /* YouTube: keep primary watch column under video transparent so theme shows */
-        ytd-watch-flexy #primary,
-        ytd-watch-flexy #primary-inner,
-        ytd-watch-flexy #below {
+        /* YouTube: keep primary column directly under video transparent so theme shows */
+        #primary,
+        #primary-inner,
+        #below,
+        ytd-watch-metadata,
+        #above-the-fold {
+          background: transparent !important;
           background-color: transparent !important;
+        }
+      `,
+    },
+    {
+      match: (host) => host.includes("claude.ai"),
+      vars: (t) => ({
+        "--bg-000": (t.type === "image" || t.type === "combo") ? "transparent" : t.bg,
+        "--bg-100": (t.type === "image" || t.type === "combo") ? "transparent" : t.bg,
+        "--bg-200": (t.type === "image" || t.type === "combo") ? "transparent" : t.codeBg,
+        "--text-000": t.fg,
+        "--text-100": t.fg,
+        "--text-200": t.comment || t.fg,
+      }),
+      rules: (t) => `
+        /* claude.ai: neutralize scroll gradient mask floating above chat input box */
+        div[class*="bg-gradient-to-t"],
+        div[class*="from-bg-"],
+        div[class*="from-black"],
+        div[class*="from-stone-"],
+        div[class*="from-gray-"] {
+          background: transparent !important;
+          background-image: none !important;
+        }
+
+        /* claude.ai: ensure sticky bottom chat input wrapper doesn't render an opaque black slab */
+        div[class*="sticky"][class*="bottom-0"],
+        div[class*="fixed"][class*="bottom-0"] {
+          background: transparent !important;
+          background-image: none !important;
         }
       `,
     },
