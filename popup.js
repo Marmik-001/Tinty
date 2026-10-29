@@ -18,6 +18,7 @@ const builtinLightGroup = document.getElementById("builtinLightGroup");
 const customGroup = document.getElementById("customGroup");
 const openSettingsBtn = document.getElementById("openSettingsBtn");
 const forceDarkBgToggle = document.getElementById("forceDarkBgToggle");
+const cascadeFixToggle = document.getElementById("cascadeFixToggle");
 const statusEl = document.getElementById("status");
 const themeNameLabel = document.getElementById("themeNameLabel");
 
@@ -161,12 +162,15 @@ function saveDisabledSitesOnly() {
  */
 function loadSettings() {
   chrome.storage.local.get(
-    ["enabled", "disabledSites", "theme", "customThemes", "customImages", "customCombos", "forceDarkBg"],
+    ["enabled", "disabledSites", "theme", "customThemes", "customImages", "customCombos", "forceDarkBg", "cascadeFix"],
     (settings) => {
       enabledToggle.checked = settings.enabled !== false; // default on
       forceDarkBgToggle.checked = settings.forceDarkBg === true; // default off
       const disabledSites = settings.disabledSites || [];
       disableSiteToggle.checked = disabledSites.includes(currentHostname);
+
+      // Top-down cascade fix toggle (default on)
+      cascadeFixToggle.checked = settings.cascadeFix !== false;
 
       const customThemes = settings.customThemes || [];
       const customImages = settings.customImages || [];
@@ -232,6 +236,11 @@ disableSiteToggle.addEventListener("change", saveDisabledSitesOnly);
 /** Listener for "Force Dark Backgrounds" toggle. Saves preference to storage. */
 forceDarkBgToggle.addEventListener("change", () => {
   chrome.storage.local.set({ forceDarkBg: forceDarkBgToggle.checked });
+});
+
+/** Listener for top-down cascade fix toggle. */
+cascadeFixToggle.addEventListener("change", () => {
+  chrome.storage.local.set({ cascadeFix: cascadeFixToggle.checked });
 });
 
 // Initialize popup logic on DOM load

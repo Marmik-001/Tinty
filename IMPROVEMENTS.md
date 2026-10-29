@@ -46,7 +46,16 @@ This document outlines key technical improvements, architectural refactorings, p
 
 ## 3. UI/UX & Feature Enhancements
 
-### A. Accessibility & WCAG Contrast Safety Checker
+### A. TODO: Sidebar & Navbar Theming with Top-Down Cascade
+- **Decision**: The **Top-Down Cascade** method has been chosen as the primary anti-artifact and layout theme cascade strategy.
+- **Key Finding**: Among the three tested approaches (*Make parents transparent*, *Match parent to child*, and *Top-down cascade*), Top-Down Cascade was the **only method that successfully converted hardcoded black sidebar layouts into the custom theme/wallpaper background**.
+- **Next Steps (Sidebars & Navbars)**:
+  - When implementing dynamic blur / glassmorphism and translucent panels for sidebars (`#secondary`, `aside`, navigation drawers):
+    - Use the Top-Down Cascade logic to strip solid opaque intermediate wrappers so the underlying backdrop image/tint shows through.
+    - Apply `backdrop-filter: blur(...)` and subtle translucent background overlays (`rgba(..., 0.3)`) directly to the outer container or leaf card clusters.
+    - Ensure leaf cards, buttons, and text contrast are preserved.
+
+### B. Accessibility & WCAG Contrast Safety Checker
 - **Feature Idea**: Automatically verify readability ratio between `fg` (foreground) and `bg` (background) using WCAG 2.1 contrast math ($(\text{L1} + 0.05) / (\text{L2} + 0.05)$).
 - **Behavior**: If a user-uploaded VS Code theme yields a contrast ratio below `4.5:1` (WCAG AA minimum for standard text), automatically adjust text brightness or display a warning in the Settings tab.
 

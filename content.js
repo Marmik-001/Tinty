@@ -32,6 +32,9 @@
   /** @type {string} DOM attribute caching original text color before contrast-aware recoloring. */
   const TEXT_ORIG_ATTR = "data-vstr-orig-text";
 
+  /** @type {string} DOM attribute marking elements modified by corner fix strategies. */
+  const CORNER_FIX_ATTR = 'data-vstr-corner-fix';
+
   /** @type {string} CSS selector for text-bearing elements to scan during contrast recoloring. */
   const TEXT_SELECTOR = 'p, li, span, h1, h2, h3, h4, h5, h6, a, td, th, label, blockquote, dt, dd, figcaption, summary, strong, em, b, i, small, mark, del, ins, sub, sup';
 
@@ -65,22 +68,59 @@
         "--color-border-primary": t.border,
       }),
     },
+    {
+      match: (host) => host.includes("youtube.com"),
+      vars: (t) => ({
+        "--yt-spec-base-background": (t.type === "image" || t.type === "combo") ? "transparent" : (t.bg || "#1e1e1e"),
+        "--yt-spec-general-background-a": (t.type === "image" || t.type === "combo") ? "transparent" : (t.bg || "#1e1e1e"),
+      }),
+      rules: (t) => `
+        /* YouTube: neutralize ambient mode (cinematics) bottom vignette bleed below video */
+        #cinematics::after,
+        ytd-watch-flexy[cinematics-enabled] #cinematics::after {
+          background: transparent !important;
+          display: none !important;
+        }
+
+        /* YouTube: remove black background bleed under video player container */
+        #player-container-outer,
+        #player-container-inner,
+        #player-container,
+        ytd-player#ytd-player {
+          background-color: transparent !important;
+        }
+
+        /* YouTube: keep primary watch column under video transparent so theme shows */
+        ytd-watch-flexy #primary,
+        ytd-watch-flexy #primary-inner,
+        ytd-watch-flexy #below {
+          background-color: transparent !important;
+        }
+      `,
+    },
   ];
 
   /**
-   * Constructs CSS custom property declarations for matching site profiles.
+   * Constructs CSS custom property declarations and site-specific rules for matching site profiles.
    *
    * @param {Object} theme - Active theme object.
-   * @returns {string} CSS rule string (e.g. `:root, html { --var: #val !important; }`).
+   * @returns {string} CSS rule string.
    */
   function buildSiteProfileCSS(theme) {
     const profile = SITE_PROFILES.find((p) => p.match(location.hostname));
     if (!profile) return "";
-    const vars = profile.vars(theme);
-    const decls = Object.entries(vars)
-      .map(([name, value]) => `${name}: ${value} !important;`)
-      .join(" ");
-    return `:root, html { ${decls} }`;
+    let css = "";
+    if (profile.vars) {
+      const vars = profile.vars(theme);
+      const decls = Object.entries(vars)
+        .map(([name, value]) => `${name}: ${value} !important;`)
+        .join(" ");
+      css += `:root, html { ${decls} }\n`;
+    }
+    if (profile.rules) {
+      css += profile.rules(theme) + "\n";
+    }
+    return css;
   }
 
   /**
@@ -820,16 +860,140 @@
     });
   }
 
-  /** @type {MutationObserver|null} Observer for dynamically added elements when force-dark is on. */
-  var bodyObserver = null;
+  // --- Top-Down Cascade Anti-Artifact Pass ---
+
+  /** @type {string} CSS selector for container elements to scan for intermediate wrappers. */
+  const CORNER_ELEMENT_SELECTOR = 'div, section, article, aside, nav, header, footer, main, figure, details, form, fieldset, ul, ol, li, button, pre, code, table, tr, td, th';
 
   /**
-   * Starts a MutationObserver on document.body to force-darken backgrounds
-   * on dynamically added container elements (e.g. SPA page transitions, modals).
+   * Helper to mark an element with CORNER_FIX_ATTR and set its background color.
+   * Records previous state so restoration is exact and doesn't clobber force-dark overrides.
+   *
+   * @param {HTMLElement} el - Element to modify.
+   * @param {string} newBg - New background-color value.
+   * @param {string} [priority] - CSS priority ('important' or '').
+   */
+  function applyCornerFixBg(el, newBg, priority) {
+    if (!el || el.hasAttribute(CORNER_FIX_ATTR)) return;
+
+    var prevInline = el.style.getPropertyValue('background-color');
+    var prevPrio = el.style.getPropertyPriority('background-color');
+
+    // Store restoration info:
+    // If element was already darkened by overrideLightBackgrounds, mark '__DARK_BG__'
+    // Otherwise store the inline style (with priority prefix) or '__NONE__'
+    if (el.hasAttribute(DARK_BG_ATTR)) {
+      el.setAttribute(CORNER_FIX_ATTR, '__DARK_BG__');
+    } else if (prevInline) {
+      el.setAttribute(CORNER_FIX_ATTR, (prevPrio ? '!important:' : '') + prevInline);
+    } else {
+      el.setAttribute(CORNER_FIX_ATTR, '__NONE__');
+    }
+
+    el.style.setProperty('background-color', newBg, priority || '');
+  }
+
+  /**
+   * Top-Down Cascade Anti-Artifact Strategy.
+   * Scans container elements and identifies intermediate wrapper elements that have
+   * child elements, no direct text content, and no border-radius. Sets their background
+   * to transparent so only innermost content containers/cards retain solid backgrounds.
    *
    * @param {Object} theme - Active theme definition object.
    */
-  function startBodyObserver(theme) {
+  function cornerFixCascade(theme) {
+    if (!theme) return;
+
+    var elements;
+    try {
+      elements = document.querySelectorAll(CORNER_ELEMENT_SELECTOR);
+    } catch (e) {
+      return;
+    }
+
+    elements.forEach(function (el) {
+      if (el.hasAttribute(CORNER_FIX_ATTR)) return;
+      if (el === document.body || el === document.documentElement) return;
+
+      var bg;
+      try {
+        bg = getComputedStyle(el).backgroundColor;
+      } catch (e) {
+        return;
+      }
+      if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') return;
+
+      // Keep solid background if element has direct text content
+      var hasDirectText = false;
+      for (var n = 0; n < el.childNodes.length; n++) {
+        if (el.childNodes[n].nodeType === 3 && el.childNodes[n].textContent.trim()) {
+          hasDirectText = true;
+          break;
+        }
+      }
+      if (hasDirectText) return;
+
+      // Keep solid background if element has border-radius
+      var br;
+      try {
+        br = getComputedStyle(el).borderRadius;
+      } catch (e) {
+        return;
+      }
+      if (br && br !== '0px' && br !== '0' && br !== '' && br !== '0px 0px 0px 0px') return;
+
+      // Only modify wrapper elements that contain child elements
+      if (!el.children || el.children.length === 0) return;
+
+      applyCornerFixBg(el, 'transparent', 'important');
+    });
+  }
+
+  /**
+   * Restores original backgrounds on all elements modified by top-down cascade pass.
+   *
+   * @param {Object} [theme] - Active theme definition object to restore dark bg overrides.
+   */
+  function restoreCornerFixes(theme) {
+    var marked;
+    try {
+      marked = document.querySelectorAll('[' + CORNER_FIX_ATTR + ']');
+    } catch (e) {
+      return;
+    }
+    marked.forEach(function (el) {
+      var state = el.getAttribute(CORNER_FIX_ATTR);
+      if (state === '__DARK_BG__') {
+        var darkBg = (theme && (theme.type === 'combo' || theme.type === 'image')) ? 'transparent' : (theme ? theme.bg : '');
+        if (darkBg) {
+          el.style.setProperty('background-color', darkBg, 'important');
+        } else {
+          el.style.removeProperty('background-color');
+        }
+      } else if (state === '__NONE__') {
+        el.style.removeProperty('background-color');
+      } else if (state && state.startsWith('!important:')) {
+        el.style.setProperty('background-color', state.slice(11), 'important');
+      } else if (state) {
+        el.style.setProperty('background-color', state);
+      } else {
+        el.style.removeProperty('background-color');
+      }
+      el.removeAttribute(CORNER_FIX_ATTR);
+    });
+  }
+
+  /** @type {MutationObserver|null} Observer for dynamically added elements when force-dark or cascade fix is on. */
+  var bodyObserver = null;
+
+  /**
+   * Starts a MutationObserver on document.body to handle dynamically added elements.
+   *
+   * @param {Object} theme - Active theme definition object.
+   * @param {boolean} forceDarkBg - Whether force dark backgrounds is enabled.
+   * @param {boolean} enableCascade - Whether top-down cascade fix is enabled.
+   */
+  function startBodyObserver(theme, forceDarkBg, enableCascade) {
     stopBodyObserver();
     if (!document.body) return;
 
@@ -838,8 +1002,12 @@
       // Debounce to avoid thrashing on rapid DOM changes
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(function () {
-        overrideLightBackgrounds(theme);
-        recolorTextForContrast(theme);
+        if (forceDarkBg) {
+          overrideLightBackgrounds(theme);
+          recolorTextForContrast(theme);
+        }
+        restoreCornerFixes(theme);
+        if (enableCascade) cornerFixCascade(theme);
       }, 150);
     });
     bodyObserver.observe(document.body, { childList: true, subtree: true });
@@ -911,6 +1079,7 @@
       restoreInlineColoredCodeBlocks();
       restoreForcedDarkBackgrounds();
       restoreRecoloredText();
+      restoreCornerFixes(settings ? settings.theme : null);
       stopBodyObserver();
       return;
     }
@@ -927,10 +1096,22 @@
     if (settings.forceDarkBg) {
       overrideLightBackgrounds(settings.theme);
       recolorTextForContrast(settings.theme);
-      startBodyObserver(settings.theme);
     } else {
       restoreForcedDarkBackgrounds();
       restoreRecoloredText();
+    }
+
+    // Top-down cascade anti-artifact pass (default enabled)
+    const enableCascade = settings.cascadeFix !== false;
+    restoreCornerFixes(settings.theme);
+    if (enableCascade) {
+      cornerFixCascade(settings.theme);
+    }
+
+    // Keep body observer active if force-dark or cascade fix is enabled
+    if (settings.forceDarkBg || enableCascade) {
+      startBodyObserver(settings.theme, !!settings.forceDarkBg, enableCascade);
+    } else {
       stopBodyObserver();
     }
   }
@@ -941,7 +1122,7 @@
   function loadAndApply() {
     try {
       if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) return;
-      chrome.storage.local.get(["enabled", "disabledSites", "theme", "forceDarkBg"], (settings) => {
+      chrome.storage.local.get(["enabled", "disabledSites", "theme", "forceDarkBg", "cascadeFix"], (settings) => {
         if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.lastError) return;
         applySettings(settings);
       });
