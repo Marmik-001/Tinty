@@ -168,10 +168,38 @@ This puts the user in control and makes it opt-in for sites where they want the 
 
 ---
 
+## 🐛 Known Issue: YouTube Ambient Mode Background Bleed
+
+### The Problem
+When playing a video on YouTube, approximately 2–4 seconds into playback, a dark/black background layer bleeds directly below the video player, clashing with custom themes or wallpaper backgrounds.
+
+### Root Cause
+1. **Ambient Mode ("Cinematics") Engine**: YouTube waits ~3 seconds for the video decoder to stabilize, then dynamically activates `[cinematics-enabled]` and mounts `#cinematics` / `#cinematics-container` / `#cinematics-full-bleed-container` with an active WebGL/canvas ambient glow.
+2. **Bottom Vignette Mask**: To prevent the ambient glow from illuminating the entire page, YouTube overlays a hardcoded 200px dark gradient mask (`#cinematics::after` / `#cinematics-container::after`) fading into `#0f0f0f` / `#000000`.
+3. **Player & App Wrappers**: `<ytd-app>`, `<ytd-page-manager>`, `#full-bleed-container`, and `.player-container-background` hold native `#0f0f0f` / `#000000` backgrounds.
+4. **Cascade Interaction**: When the video playback triggers DOM mutations ~3s in, the top-down cascade pass clears intermediate wrappers (`#primary`, `#below`), which exposes the dark ambient mask and player backdrop cutting off beneath the player.
+
+### User Workaround
+In the YouTube video player, click the **Settings (gear icon ⚙️) → Ambient mode → Off**. Turning off Ambient Mode disables the cinematics container and vignette mask.
+
+---
+
+## 🐛 Known Issue: Claude.ai Chat Input Scroll Fade Overlay
+
+### The Problem
+When scrolling up in a chat on Claude.ai to read earlier conversation messages, an opaque dark/black layer appears across the width of the chat area above the input box, looking like a solid block covering the messages.
+
+### Root Cause
+Claude.ai's chat interface pins the prompt input using a sticky bottom container (`div[class*="sticky"][class*="bottom-0"]`) and attaches a fade-out gradient overlay (`bg-gradient-to-t from-bg-100 to-transparent` or inline `linear-gradient`) to soften message cutoffs. When at the bottom, no text is behind it. Once scrolled up, conversation text scrolls behind this full-width container, rendering an opaque dark slab across the custom theme background.
+
+---
+
 ## 📋 Other Known Limitations
 
 | Issue | File | Description |
 |---|---|---|
+| YouTube Ambient Mode bleed | `content.js` | YouTube's cinematics ambient canvas vignette bleeds a dark mask ~3s into playback below the video player. Temporary workaround: toggle Ambient mode Off in player settings. |
+| Claude.ai chat scroll mask | `content.js` | Sticky bottom chat container and gradient fade overlay render an opaque dark layer when scrolling up through chat history. |
 | `include` field not resolved | `theme-parser.js` | VS Code themes using `"include": "./base-theme.json"` to inherit from a base theme cannot resolve the referenced file — only the top-level theme's own colors are used. |
 | No SPA re-recoloring | `content.js` | Client-side navigations in SPAs (Next.js, Gatsby, Nuxt) that render new DOM without touching `<head>` won't get inline code blocks recolored. |
 | Fixed combo opacity | `content.js:232` | Combo mode background overlay uses hardcoded `0.55` alpha. No user control. |
