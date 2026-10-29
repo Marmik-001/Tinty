@@ -73,20 +73,41 @@
       vars: (t) => ({
         "--yt-spec-base-background": (t.type === "image" || t.type === "combo") ? "transparent" : (t.bg || "#1e1e1e"),
         "--yt-spec-general-background-a": (t.type === "image" || t.type === "combo") ? "transparent" : (t.bg || "#1e1e1e"),
+        "--yt-spec-general-background-b": (t.type === "image" || t.type === "combo") ? "transparent" : (t.bg || "#1e1e1e"),
       }),
       rules: (t) => `
-        /* YouTube: neutralize all ambient mode (cinematics) bottom vignette overlays */
+        /* YouTube: Ensure main app views allow theme backdrop to show */
+        ytd-app,
+        ytd-page-manager,
+        #page-manager,
+        ytd-watch-flexy,
+        ytd-watch-grid {
+          background: transparent !important;
+          background-color: transparent !important;
+        }
+
+        /* YouTube: Neutralize all ambient mode (cinematics) containers and vignette masks */
+        #cinematics-full-bleed-container,
+        #cinematics,
+        #cinematics-container,
+        ytd-cinematics,
+        .player-container-background {
+          background: transparent !important;
+          background-color: transparent !important;
+        }
+
         #cinematics::after,
         #cinematics-container::after,
+        #cinematics-full-bleed-container::after,
         ytd-cinematics::after,
-        [id="cinematics"]::after,
-        [id="cinematics"] > *::after {
+        [id*="cinematics"]::after,
+        [id*="cinematics"] > *::after {
           background: transparent !important;
           background-image: none !important;
           display: none !important;
         }
 
-        /* YouTube: remove black background bleed under player wrappers in both grid and flexy layouts */
+        /* YouTube: Remove black background bleed under player wrappers in all views */
         #player,
         #ytd-player,
         #player-container,
@@ -100,7 +121,7 @@
           background-color: transparent !important;
         }
 
-        /* YouTube: keep primary column directly under video transparent so theme shows */
+        /* YouTube: Keep primary column directly under video transparent so theme shows */
         #primary,
         #primary-inner,
         #below,
@@ -127,16 +148,31 @@
         div[class*="from-bg-"],
         div[class*="from-black"],
         div[class*="from-stone-"],
-        div[class*="from-gray-"] {
+        div[class*="from-gray-"],
+        div[style*="linear-gradient"],
+        div[class*="pointer-events-none"][class*="absolute"][class*="bottom-full"],
+        div[class*="sticky"]::before,
+        div[class*="sticky"]::after,
+        div[class*="fixed"]::before,
+        div[class*="fixed"]::after {
           background: transparent !important;
           background-image: none !important;
         }
 
         /* claude.ai: ensure sticky bottom chat input wrapper doesn't render an opaque black slab */
         div[class*="sticky"][class*="bottom-0"],
-        div[class*="fixed"][class*="bottom-0"] {
+        div[class*="fixed"][class*="bottom-0"],
+        footer[class*="bottom-0"] {
           background: transparent !important;
+          background-color: transparent !important;
           background-image: none !important;
+        }
+
+        /* claude.ai: keep the input box card distinct and readable */
+        fieldset,
+        form[class*="relative"] > div,
+        [data-testid="chat-input"] {
+          background-color: ${(t.type === "image" || t.type === "combo") ? "rgba(30, 30, 30, 0.75)" : (t.codeBg || "#2d2d2d")} !important;
         }
       `,
     },
@@ -282,6 +318,7 @@
       const fg = theme.fg || "#f0f0f0";
       const link = theme.link || "#8ab4f8";
       return `
+        ${buildSiteProfileCSS(theme)}
         html, body, ${APP_ROOT_SELECTOR} {
           background-image: url("${escapeForCss(theme.dataUrl)}") !important;
           background-size: cover !important;
