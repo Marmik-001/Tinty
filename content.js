@@ -23,6 +23,9 @@
   /** @type {string} ID of the injected extension stylesheet element. */
   const STYLE_ID = "vstr-injected-style";
 
+  /** @type {string} ID of the hardware-accelerated fixed wallpaper backdrop element. */
+  const BACKDROP_ID = "vstr-backdrop-layer";
+
   /** @type {string} DOM attribute used to cache an element's original inline color before recoloring. */
   const ORIG_ATTR = "data-vstr-orig-color";
 
@@ -379,16 +382,21 @@
       const link = theme.link || "#8ab4f8";
       return `
         ${buildSiteProfileCSS(theme)}
-        html, body, ${APP_ROOT_SELECTOR} {
-          background-image: url("${escapeForCss(theme.dataUrl)}") !important;
-          background-size: cover !important;
-          background-attachment: fixed !important;
-          background-position: center center !important;
-          background-repeat: no-repeat !important;
+        #${BACKDROP_ID} {
+          position: fixed !important;
+          inset: 0 !important;
+          background: url("${escapeForCss(theme.dataUrl)}") center / cover no-repeat !important;
+          z-index: -2147483648 !important;
+          pointer-events: none !important;
+          will-change: transform !important;
+        }
+        html, ${APP_ROOT_SELECTOR} {
+          background: transparent !important;
+          background-color: transparent !important;
         }
         body {
-          background-color: rgba(0,0,0,0.55) !important;
-          background-blend-mode: darken !important;
+          background: transparent !important;
+          background-color: rgba(0, 0, 0, 0.55) !important;
         }
         body, p, li, span, article, section, main, header, footer,
         aside, td, th, label, blockquote, font, h1, h2, h3, h4, h5, h6 {
@@ -405,20 +413,25 @@
     const codeBg = theme.codeBg || "#2d2d2d";
     const border = theme.border || "#3c3c3c";
 
-    // Background styling: Combo mode uses translucent theme background overlay; normal mode uses solid bg.
+    // Background styling: Combo mode uses translucent theme background overlay over the fixed backdrop; normal mode uses solid bg.
     const backgroundCSS =
       theme.type === "combo"
         ? `
-          html, body, ${APP_ROOT_SELECTOR} {
-            background-image: url("${escapeForCss(theme.dataUrl)}") !important;
-            background-size: cover !important;
-            background-attachment: fixed !important;
-            background-position: center center !important;
-            background-repeat: no-repeat !important;
+          #${BACKDROP_ID} {
+            position: fixed !important;
+            inset: 0 !important;
+            background: url("${escapeForCss(theme.dataUrl)}") center / cover no-repeat !important;
+            z-index: -2147483648 !important;
+            pointer-events: none !important;
+            will-change: transform !important;
+          }
+          html, ${APP_ROOT_SELECTOR} {
+            background: transparent !important;
+            background-color: transparent !important;
           }
           body {
+            background: transparent !important;
             background-color: ${hexToRgba(bg, 0.55)} !important;
-            background-blend-mode: darken !important;
           }
         `
         : `
@@ -1536,6 +1549,44 @@
     headObserver.observe(document.head, { childList: true });
   }
 
+  // --- Hardware-Accelerated Wallpaper Backdrop Layer ---
+
+  /**
+   * Ensures the hardware-accelerated fixed wallpaper backdrop element exists
+   * directly on document.documentElement, outside framework reconciliation trees.
+   *
+   * @param {Object} theme - Active theme definition object.
+   */
+  function ensureBackdropLayer(theme) {
+    if (!theme || (theme.type !== "image" && theme.type !== "combo") || !theme.dataUrl) {
+      removeBackdropLayer();
+      return;
+    }
+
+    const root = document.documentElement;
+    if (!root) return;
+
+    let backdrop = document.getElementById(BACKDROP_ID);
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = BACKDROP_ID;
+      backdrop.setAttribute("aria-hidden", "true");
+      if (root.firstChild) {
+        root.insertBefore(backdrop, root.firstChild);
+      } else {
+        root.appendChild(backdrop);
+      }
+    }
+  }
+
+  /**
+   * Removes the fixed wallpaper backdrop element from document.documentElement if present.
+   */
+  function removeBackdropLayer() {
+    const backdrop = document.getElementById(BACKDROP_ID);
+    if (backdrop) backdrop.remove();
+  }
+
   /**
    * Applies or removes ThemeReader styling based on stored configuration settings.
    *
@@ -1552,6 +1603,7 @@
       !(settings.disabledSites && settings.disabledSites.includes(location.hostname));
 
     if (!shouldApply) {
+      removeBackdropLayer();
       restoreInlineColoredCodeBlocks();
       restoreLuminanceFix();
       restoreScopedCssFix();
@@ -1562,6 +1614,8 @@
       stopBodyObserver();
       return;
     }
+
+    ensureBackdropLayer(settings.theme);
 
     const style = document.createElement("style");
     style.id = STYLE_ID;
