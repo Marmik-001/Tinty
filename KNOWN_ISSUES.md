@@ -194,24 +194,20 @@ Claude.ai's chat interface pins the prompt input using a sticky bottom container
 
 ---
 
-## 🐛 Known Issue: Scroll Repaint Lag (`background-attachment: fixed`)
+## ✅ Resolved Performance Optimizations
 
-### The Problem
-When custom background images or wallpaper combos are active, page scrolling feels heavy, sticky, or drops frames (especially on large screens or image-heavy pages).
+### 1. Scroll Repaint Lag (`background-attachment: fixed` → Fixed Backdrop Layer)
+- **Status**: **RESOLVED** (Commit `8ba4796` & `70148e5`)
+- **Fix**: Replaced `background-attachment: fixed` on `body` with an isolated hardware-accelerated `#vstr-backdrop-layer` attached directly to `document.documentElement` (`<html>`) styled with `position: fixed !important; inset: 0 !important; z-index: -2147483648 !important; pointer-events: none !important; will-change: transform !important;`. The viewport compositor retains GPU accelerated scrolling without repainting. Additionally, high-resolution imported wallpapers are automatically downscaled to 1920×1080 and compressed as WebP (0.85 quality) via offscreen canvas, dropping storage and decode overhead from ~10MB to ~200KB.
 
-### Root Cause
-`content.js` applies `background-attachment: fixed !important` to `html, body, ${APP_ROOT_SELECTOR}`.
-In Chromium / Blink engines, `background-attachment: fixed` disables GPU compositor tile scrolling. Instead of moving cached GPU texture layers on the compositor thread (60–120 FPS), Chromium must invalidate the entire viewport on every scroll frame and force the CPU/GPU to re-rasterize and repaint the multi-megabyte image over the window coordinates.
-
----
-
-## 🐛 Known Issue: MutationObserver Layout Thrashing During Scrolling
-
-### The Problem
-On complex or dynamic websites (Gmail, YouTube, Twitter/X, infinite-scroll feeds), scrolling can cause micro-stutters or CPU spikes.
-
-### Root Cause
-Dynamic sites frequently mutate the DOM as you scroll (updating virtualized rows, hover states, scroll indicators). The body `MutationObserver` triggers `applyAdaptiveSurfaceMapping`, `recolorTextForContrast`, and `cornerFixCascade`. These functions query `getComputedStyle()` across hundreds of DOM nodes and up to 60 ancestor levels per text node. Modifying styles and immediately querying computed geometry triggers **Forced Synchronous Layout (Layout Thrashing)** on the main browser thread.
+### 2. MutationObserver Layout Thrashing During Scrolling
+- **Status**: **RESOLVED** (Commit `eb9c27d`)
+- **Fix**:
+  1. Scoped `bodyObserver` strictly to `mutation.addedNodes` rather than re-querying the entire document on every DOM update.
+  2. Filtered out extension-injected elements (`#vstr-backdrop-layer`, style tags) to avoid self-triggered cycles.
+  3. Implemented two-phase read/write batching across `recolorTextForContrast()`, `applyAdaptiveSurfaceMapping()`, `applyLuminanceFix()`, and `cornerFixCascade()`: all `getComputedStyle()` calls occur in Phase 1 before any inline styles or attributes are written in Phase 2.
+  4. Scheduled DOM processing via `requestIdleCallback()` with debouncing so theme adjustments execute during browser idle time without impacting active scroll frames.
+  5. Removed unnecessary `restoreCornerFixes()` calls from the observer loop.
 
 ---
 
@@ -219,12 +215,9 @@ Dynamic sites frequently mutate the DOM as you scroll (updating virtualized rows
 
 | Issue | File | Description |
 |---|---|---|
-| Scroll Repaint Lag (`fixed` bg) | `content.js` | `background-attachment: fixed` disables GPU compositor scrolling, forcing software repaints on every scroll frame. |
-| Layout Thrashing on Scroll | `content.js` | `MutationObserver` calling `getComputedStyle` in deep DOM loops during dynamic scroll events. |
 | YouTube Ambient Mode bleed | `content.js` | YouTube's cinematics ambient canvas vignette bleeds a dark mask ~3s into playback below the video player. Temporary workaround: toggle Ambient mode Off in player settings. |
 | Claude.ai chat scroll mask | `content.js` | Sticky bottom chat container and gradient fade overlay render an opaque dark layer when scrolling up through chat history. |
 | `include` field not resolved | `theme-parser.js` | VS Code themes using `"include": "./base-theme.json"` to inherit from a base theme cannot resolve the referenced file — only the top-level theme's own colors are used. |
 | No SPA re-recoloring | `content.js` | Client-side navigations in SPAs (Next.js, Gatsby, Nuxt) that render new DOM without touching `<head>` won't get inline code blocks recolored. |
 | Fixed combo opacity | `content.js:232` | Combo mode background overlay uses hardcoded `0.55` alpha. No user control. |
-| Storage quota risk | `options.js` | `chrome.storage.local` has a 10MB quota. Multiple high-resolution background images (stored as Base64 data URLs) can silently hit the limit, causing `chrome.runtime.lastError`. |
 | No Firefox support | `manifest.json` | Extension uses Chrome-specific `chrome.*` APIs. Firefox requires `browser.*` with Promises. |
