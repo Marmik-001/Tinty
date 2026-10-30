@@ -45,7 +45,7 @@
   const ADAPTIVE_SURFACE_ATTR = 'data-vstr-adaptive-surface';
 
   /** @type {string} CSS selector for text-bearing elements to scan during contrast recoloring. */
-  const TEXT_SELECTOR = 'p, li, span, h1, h2, h3, h4, h5, h6, a, td, th, label, blockquote, dt, dd, figcaption, summary, strong, em, b, i, small, mark, del, ins, sub, sup, div';
+  const TEXT_SELECTOR = 'p, li, span, h1, h2, h3, h4, h5, h6, a, td, th, label, blockquote, dt, dd, figcaption, summary, strong, em, b, i, small, mark, del, ins, sub, sup, div, font';
 
   /**
    * Sanitizes a Base64 data URL for safe inclusion in CSS `url("...")` rules.
@@ -184,6 +184,57 @@
           background-color: ${(t.type === "image" || t.type === "combo") ? "rgba(30, 30, 30, 0.75)" : (t.codeBg || "#2d2d2d")} !important;
         }
       `,
+    },
+    {
+      match: (host) => host.includes("mail.google.com"),
+      rules: (t) => {
+        const fg = t.fg || (t.type === "image" ? "#f0f0f0" : "#d4d4d4");
+        const link = t.link || (t.type === "image" ? "#8ab4f8" : "#4daafc");
+        const codeBg = (t.type === "image" || t.type === "combo") ? "rgba(30, 30, 30, 0.75)" : (t.codeBg || "#252526");
+        return `
+          /* Gmail: Ensure email message body content is always crisp and readable */
+          .a3s,
+          .a3s div,
+          .a3s p,
+          .a3s span,
+          .a3s font,
+          .a3s td,
+          .a3s th,
+          .a3s li,
+          .a3s b,
+          .a3s strong,
+          .a3s em,
+          .a3s i,
+          .a3s u,
+          .a3s blockquote,
+          .gmail_quote,
+          .gmail_default,
+          .gmail_attr {
+            color: ${fg} !important;
+          }
+
+          /* Gmail: Ensure links inside message bodies have high-contrast theme link color */
+          .a3s a,
+          .a3s a:visited,
+          .a3s a * {
+            color: ${link} !important;
+          }
+
+          /* Gmail: Neutralize white message body wrappers so theme background/card shows */
+          .ii.gt,
+          .a3s {
+            background-color: transparent !important;
+          }
+
+          /* Gmail: Ensure compose / edit message body is readable */
+          div[aria-label="Message Body"],
+          div[role="textbox"][g_editable="true"],
+          .Am.Al.editable {
+            color: ${fg} !important;
+            background-color: ${codeBg} !important;
+          }
+        `;
+      },
     },
   ];
 
@@ -340,7 +391,7 @@
           background-blend-mode: darken !important;
         }
         body, p, li, span, article, section, main, header, footer,
-        aside, td, th, label, blockquote, h1, h2, h3, h4, h5, h6 {
+        aside, td, th, label, blockquote, font, h1, h2, h3, h4, h5, h6 {
           color: ${fg} !important;
         }
         a, a:visited { color: ${link} !important; }
@@ -380,7 +431,7 @@
       ${buildSiteProfileCSS(theme)}
       ${backgroundCSS}
       body, p, li, span, article, section, main, header, footer,
-      aside, td, th, label, blockquote {
+      aside, td, th, label, blockquote, font {
         color: ${fg} !important;
       }
       h1, h2, h3, h4, h5, h6 {
@@ -772,16 +823,17 @@
    * a non-transparent computed background color.
    *
    * @param {Element} el - Starting element.
+   * @param {Object} [theme] - Optional active theme definition object for root canvas fallback.
    * @returns {Array<number>|null} RGB array of the effective background, or null.
    */
-  function getEffectiveBackground(el) {
+  function getEffectiveBackground(el, theme) {
     var current = el;
-    var maxDepth = 20; // Safety limit
-    while (current && maxDepth-- > 0) {
+    var maxDepth = 60; // Deep enough for modern complex SPAs (Gmail, Slack, Jira)
+    while (current && current !== document.documentElement && maxDepth-- > 0) {
       try {
         var bg = getComputedStyle(current).backgroundColor;
       } catch (e) {
-        return null;
+        break;
       }
       if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
         var rgb = resolveColor(bg);
@@ -789,8 +841,30 @@
       }
       current = current.parentElement;
     }
-    // Fallback: assume white if we can't determine
-    return [255, 255, 255];
+
+    // Check document.body background
+    if (document.body) {
+      try {
+        var bodyBg = getComputedStyle(document.body).backgroundColor;
+        if (bodyBg && bodyBg !== 'transparent' && bodyBg !== 'rgba(0, 0, 0, 0)') {
+          var bRgb = resolveColor(bodyBg);
+          if (bRgb) return bRgb;
+        }
+      } catch (e) {}
+    }
+
+    // Theme-grounded fallback when all ancestors are transparent (e.g. over dark wallpaper)
+    if (theme) {
+      if (theme.type === 'image') {
+        return [30, 30, 30];
+      }
+      if (theme.bg) {
+        var tRgb = resolveColor(theme.bg);
+        if (tRgb) return tRgb;
+      }
+    }
+
+    return [30, 30, 30];
   }
 
   /**
@@ -803,13 +877,25 @@
   function buildFullPalette(theme) {
     var names = ['fg', 'link', 'accent', 'comment', 'keyword', 'string', 'function', 'number', 'class', 'tag', 'variable'];
     var palette = [];
+    var defaultFg = (theme && theme.fg) || (theme && theme.type === "image" ? "#f0f0f0" : "#d4d4d4");
+    var fgAdded = false;
+
     for (var i = 0; i < names.length; i++) {
       var hex = theme[names[i]];
       if (!hex) continue;
       var rgb = parseCssColor(hex);
       if (!rgb) continue;
+      if (names[i] === 'fg') fgAdded = true;
       palette.push({ name: names[i], color: hex, rgb: rgb, hsl: rgbToHsl(rgb) });
     }
+
+    if (!fgAdded) {
+      var fgRgb = parseCssColor(defaultFg);
+      if (fgRgb) {
+        palette.unshift({ name: 'fg', color: defaultFg, rgb: fgRgb, hsl: rgbToHsl(fgRgb) });
+      }
+    }
+
     return palette;
   }
 
@@ -906,7 +992,7 @@
       if (!currentRgb) return;
 
       // Get effective background this text sits on (post-override)
-      var bgRgb = getEffectiveBackground(el);
+      var bgRgb = getEffectiveBackground(el, theme);
       if (!bgRgb) return;
 
       // If current contrast is already good, leave it alone
@@ -991,7 +1077,7 @@
       }
       if (!hasDirectText) return;
 
-      var bgRgb = getEffectiveBackground(el);
+      var bgRgb = getEffectiveBackground(el, theme);
       if (!bgRgb) return;
 
       var lum = relativeLuminance(bgRgb);
@@ -1377,6 +1463,7 @@
           applyLuminanceFix(theme);
         } else if (lightModeFix === 'adaptive') {
           applyAdaptiveSurfaceMapping(theme);
+          recolorTextForContrast(theme);
         }
         restoreCornerFixes(theme);
         if (enableCascade) cornerFixCascade(theme);
@@ -1486,6 +1573,7 @@
       applyScopedCssFix(settings.theme);
     } else if (lightModeFix === "adaptive") {
       applyAdaptiveSurfaceMapping(settings.theme);
+      recolorTextForContrast(settings.theme);
     }
 
     // Top-down cascade anti-artifact pass (default enabled)
