@@ -34,13 +34,24 @@
 
 <div align="center">
 
-| Theme Only (Clean Dark Mode) | Theme + Wallpaper Combo |
-|:---:|:---:|
-| <img src="assets/screenshots/theme-only.png" alt="Theme Only" width="420" /> | <img src="assets/screenshots/theme-combo.png" alt="Theme Combo" width="420" /> |
+### 📖 Read your docs in your favorite themes
+*Deep syntax token mapping and surface hierarchy across documentation and technical blogs.*
+<br />
+<img src="assets/screenshots/docs-demo.png" alt="Documentation Demo" width="800" />
 
-| Extension Toolbar Popup | Theme Library & Settings |
-|:---:|:---:|
-| <img src="assets/screenshots/popup-ui.png" alt="Popup UI" width="420" /> | <img src="assets/screenshots/options-ui.png" alt="Options UI" width="420" /> |
+<br /><br />
+
+### 🎬 Sleek ambient themes on standard sites
+*Browse media, feeds, and everyday applications like YouTube styled in your personalized theme.*
+<br />
+<img src="assets/screenshots/youtube-demo.png" alt="YouTube Demo" width="800" />
+
+<br /><br />
+
+### ⚡ Clean & distraction-free (Without wallpaper)
+*For purists who want pure VS Code dark palettes without background images on GitHub and code repositories.*
+<br />
+<img src="assets/screenshots/github-demo.png" alt="GitHub Clean Demo" width="800" />
 
 </div>
 
@@ -57,8 +68,8 @@ Tinty is 100% free, open-source, and runs on all modern Chromium browsers (**Goo
 ### Step-by-Step Instructions
 
 1. **Download the Extension**:
-   * Click the green **Code → Download ZIP** button above (or download `tinty-v0.7.0.zip` from [Releases](https://github.com/your-username/tinty/releases)).
-   * Extract the ZIP file and move the folder to a permanent folder on your computer.
+   * Click the green **Code → Download ZIP** button above (or download `tinty-v0.7.0.zip` from [Releases](https://github.com/Marmik-001/Tinty/releases)).
+   * Extract the ZIP file and move the folder to a permanent location on your computer.
 
 2. **Open the Extensions Page in Your Browser**:
    * **Chrome**: `chrome://extensions`
@@ -70,7 +81,7 @@ Tinty is 100% free, open-source, and runs on all modern Chromium browsers (**Goo
 
 4. **Load the Extension**:
    * Click **Load unpacked** (top-left).
-   * Select the folder containing `manifest.json`.
+   * Select the unzipped folder containing `manifest.json`.
 
 5. **Pin to Toolbar**:
    * Click the puzzle icon 🧩 in your browser toolbar and pin **Tinty** for quick one-click access!
@@ -89,23 +100,20 @@ Tinty is 100% free, open-source, and runs on all modern Chromium browsers (**Goo
 You can export and use whatever theme you are currently rocking in VS Code in less than 30 seconds:
 
 <p align="center">
-  <img src="assets/screenshots/vscode-export-guide.png" alt="How to export theme in VS Code" width="700" />
+  <img src="assets/screenshots/vs-code-theme-generator.png" alt="VS Code Theme Generator Command" width="700" />
 </p>
 
-### Method 1: Export Current Theme directly from VS Code (Easiest)
-1. Open VS Code.
-2. Open the Command Palette: `Ctrl + Shift + P` (or `Cmd + Shift + P` on macOS).
-3. Type and select: **`Developer: Generate Color Theme From Current Settings`**.
-4. VS Code opens a new editor tab containing your complete, active theme JSON.
-5. Save this file (`Ctrl + S` or `Cmd + S`) as `my-theme.json`.
-6. In your browser, click **Tinty → Settings → Add a VS Code theme**, choose your saved file, and click **Save theme**!
+### Step-by-Step Theme Export:
+1. In VS Code, open the Command Palette with **`Ctrl + Shift + P`** (or **`Cmd + Shift + P`** on macOS).
+2. Search and click on:
+   ```
+   Developer: Generate Color Theme From Current Settings
+   ```
+3. Clicking this generates a new JSON theme file with all your active colors, workbench styles, and syntax tokens.
+4. Save / store this file on your computer (e.g. `my-theme.json`) with **`Ctrl + S`** (or **`Cmd + S`**).
+5. Open your browser, click **Tinty → Settings**, upload your `my-theme.json` file under **Add a VS Code theme**, and hit **Save theme**!
 
-### Method 2: From Installed Extensions Directory
-If you have a theme installed from the VS Code Marketplace, its original `.json` file is already saved locally on your drive:
-* **Linux / macOS**: `~/.vscode/extensions/<publisher.theme-name>/themes/`
-* **Windows**: `C:\Users\<YourUsername>\.vscode\extensions\<publisher.theme-name>\themes\`
-
-### Method 3: Use Built-in Presets
+### Alternative: Use Built-in Presets
 Don't have VS Code handy? Tinty comes bundled with **10 classic community presets**:
 * Dracula, One Dark, Monokai, Nord, Gruvbox Dark, Night Owl, Tokyo Night, Catppuccin Mocha, Solarized Dark & Solarized Light.
 
@@ -136,7 +144,7 @@ tinty/
 ### Local Development:
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/tinty.git
+   git clone https://github.com/Marmik-001/Tinty.git
    ```
 2. Make your edits in `content.js`, `popup.js`, or `options.js`.
 3. Go to `chrome://extensions` and click the refresh 🔄 icon on the Tinty card. Changes reflect instantly!
