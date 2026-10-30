@@ -1,4 +1,4 @@
-# ThemeReader — Known Issues & Dangerous Changes
+# Tinty — Known Issues & Dangerous Changes
 
 This document tracks known bugs, fragile areas, and changes that have been **proven to break** the extension. Read this before making any modifications.
 
@@ -45,7 +45,7 @@ The following changes were attempted and **completely broke theme rendering** (n
 
 ### The Problem
 
-ThemeReader works well on sites that already have a dark or neutral background. But on **light-themed websites** (white/light backgrounds), the extension creates **invisible text**: light-colored theme text (`color: #d4d4d4`) rendered on top of the site's own white backgrounds.
+Tinty works well on sites that already have a dark or neutral background. But on **light-themed websites** (white/light backgrounds), the extension creates **invisible text**: light-colored theme text (`color: #d4d4d4`) rendered on top of the site's own white backgrounds.
 
 ### Root Cause
 

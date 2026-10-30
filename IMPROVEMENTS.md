@@ -1,6 +1,6 @@
-# ThemeReader — Open-Source Improvement & Roadmap Guide
+# Tinty — Open-Source Improvement & Roadmap Guide
 
-This document outlines key technical improvements, architectural refactorings, performance optimizations, and open-source contribution guidelines for **ThemeReader**.
+This document outlines key technical improvements, architectural refactorings, performance optimizations, and open-source contribution guidelines for **Tinty**.
 
 ---
 
@@ -38,7 +38,7 @@ This document outlines key technical improvements, architectural refactorings, p
   - Use `requestIdleCallback` to chunk DOM processing across animation frames.
 
 ### B. Dynamic Content & Single Page Application (SPA) Support
-- **Current State**: ThemeReader recolors the page at load time and listens for stylesheet additions in `<head>`. SPA client-side navigations (e.g. Next.js/Gatsby page transitions) that render new DOM nodes without updating `<head>` may miss inline code block recoloring.
+- **Current State**: Tinty recolors the page at load time and listens for stylesheet additions in `<head>`. SPA client-side navigations (e.g. Next.js/Gatsby page transitions) that render new DOM nodes without updating `<head>` may miss inline code block recoloring.
 - **Recommendation**:
   - Add a lightweight `MutationObserver` targeted at main content containers (`#root`, `main`) with debouncing (e.g., 250ms) to recolor newly appended code blocks dynamically.
 
@@ -56,7 +56,7 @@ This document outlines key technical improvements, architectural refactorings, p
     - Ensure leaf cards, buttons, and text contrast are preserved.
 
 ### B. Light-Themed Website Readability & Testing Options
-- **Context**: On light-themed sites with nested white containers (Gmail, Cloudflare docs, Wikipedia), ThemeReader's global text override can render light text on top of white intermediate containers, causing 1:1 contrast (invisible text).
+- **Context**: On light-themed sites with nested white containers (Gmail, Cloudflare docs, Wikipedia), Tinty's global text override can render light text on top of white intermediate containers, causing 1:1 contrast (invisible text).
 - **Implemented 3 Decoupled Testing Strategies** in the popup dropdown (`Light page readability`):
   1. **Option 1: Luminance Check (Dynamic contrast)**:
      - Scans text elements, evaluates the nearest opaque background's relative luminance ($L$).
@@ -88,7 +88,7 @@ This document outlines key technical improvements, architectural refactorings, p
 
 ## 4. Open-Source Readiness Checklist
 
-Before publishing ThemeReader as an open-source repository on GitHub:
+Before publishing Tinty as an open-source repository on GitHub:
 
 - [ ] **Add an Open-Source License**: Add an explicit `LICENSE` file (e.g., **MIT License**) to the repository root.
 - [ ] **Add Contribution Guidelines (`CONTRIBUTING.md`)**: Explain how to set up the developer environment, load unpacked extension, test changes, and submit Pull Requests.

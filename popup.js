@@ -1,6 +1,6 @@
 /**
  * @file popup.js
- * @description Controller script for the ThemeReader toolbar popup interface (`popup.html`).
+ * @description Controller script for the Tinty toolbar popup interface (`popup.html`).
  *
  * Responsibilities:
  * - Queries active browser tab hostname.

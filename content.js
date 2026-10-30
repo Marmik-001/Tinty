@@ -1,6 +1,6 @@
 /**
  * @file content.js
- * @description ThemeReader content script injected into every web page (`<all_urls>`).
+ * @description Tinty content script injected into every web page (`<all_urls>`).
  *
  * 4-Layer Recolor Pipeline:
  * 1. Document & App-Shell CSS: Injects a `<style id="vstr-injected-style">` element setting
@@ -15,7 +15,7 @@
  *    theme role color based on hue-distance calculation.
  *
  * Cascade Resilience:
- * Uses a MutationObserver on `<head>` to ensure ThemeReader's `<style>` tag remains the last
+ * Uses a MutationObserver on `<head>` to ensure Tinty's `<style>` tag remains the last
  * child in `<head>`, overriding dynamic CSS-in-JS or late-loaded external stylesheets.
  */
 
@@ -699,7 +699,7 @@
   }
 
   /**
-   * Reverts inline code block recoloring when ThemeReader is disabled or turned off,
+   * Reverts inline code block recoloring when Tinty is disabled or turned off,
    * restoring original color attributes stored in `data-vstr-orig-color`.
    */
   function restoreInlineColoredCodeBlocks() {
@@ -1727,7 +1727,7 @@
   }
 
   /**
-   * Applies or removes ThemeReader styling based on stored configuration settings.
+   * Applies or removes Tinty styling based on stored configuration settings.
    *
    * @param {Object} settings - Configuration loaded from `chrome.storage.local`.
    */

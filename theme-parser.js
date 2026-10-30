@@ -179,12 +179,12 @@ const SCOPES = {
 };
 
 /**
- * Converts a raw parsed VS Code theme object into a normalized ThemeReader theme structure.
+ * Converts a raw parsed VS Code theme object into a normalized Tinty theme structure.
  * Extracts workbench colors (`editor.background`, `editor.foreground`, `textLink.foreground`)
  * and maps syntax token scope colors.
  *
  * @param {Object} themeJson - Parsed JSON object from a VS Code theme file.
- * @returns {Object} Normalized theme object ready for ThemeReader storage and rendering.
+ * @returns {Object} Normalized theme object ready for Tinty storage and rendering.
  */
 function parseVSCodeTheme(themeJson) {
   const colors = themeJson.colors || {};

@@ -1,12 +1,12 @@
-# ThemeReader — Codebase Architecture & Structure Guide
+# Tinty — Codebase Architecture & Structure Guide
 
-This document provides a comprehensive technical overview of the **ThemeReader** Chrome Extension codebase. It explains how the extension is organized, how data flows between components, where settings and custom themes are stored, and what every function in the project does.
+This document provides a comprehensive technical overview of the **Tinty** Chrome Extension codebase. It explains how the extension is organized, how data flows between components, where settings and custom themes are stored, and what every function in the project does.
 
 ---
 
 ## 1. High-Level Architecture
 
-ThemeReader is built as a **Manifest V3 Chrome Extension** using standard Web APIs (HTML5, CSS3, Vanilla JS). It requires **no build step, transpiler, or external dependencies**.
+Tinty is built as a **Manifest V3 Chrome Extension** using standard Web APIs (HTML5, CSS3, Vanilla JS). It requires **no build step, transpiler, or external dependencies**.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -76,7 +76,7 @@ vscode-theme-reader/
 ## 3. Data Storage & Persistence Model
 
 ### Storage Engine
-ThemeReader uses `chrome.storage.local` to store configuration and user assets.
+Tinty uses `chrome.storage.local` to store configuration and user assets.
 
 > **Note on Permissions**: The extension requests `unlimitedStorage` in `manifest.json`. This overrides Chrome's default 5MB quota per extension, allowing users to save multiple custom background images (encoded as Base64 Data URLs) without encountering storage write errors.
 
@@ -192,7 +192,7 @@ Executed on target web pages. Responsible for generating and injecting dynamic C
 - **`remapInlineColoredCodeBlocks(theme: Object)`**
   Performs a bounded DOM scan over `<pre>` and `<code>` elements. Reassigns inline `style="color:..."` attributes in Shiki-styled code blocks to the nearest theme token color based on hue and saturation logic. Caches original colors in `data-vstr-orig-color`.
 - **`restoreInlineColoredCodeBlocks()`**
-  Reverts inline code block recoloring when ThemeReader is disabled, restoring saved original colors from `data-vstr-orig-color`.
+  Reverts inline code block recoloring when Tinty is disabled, restoring saved original colors from `data-vstr-orig-color`.
 - **`keepStyleTagLast()`**
   Ensures `<style id="vstr-injected-style">` remains the last child in `<head>` so its rules take cascade precedence over dynamic page stylesheets.
 - **`ensureHeadObserver()`**
