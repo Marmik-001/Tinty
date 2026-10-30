@@ -1034,15 +1034,17 @@
     });
   }
 
-  // --- Option 1: Contrast-Aware Luminance Check (Dynamic DOM) ---
+  // ============================================================================
+  // [LEGACY / EXPERIMENTAL] Option 1: Contrast-Aware Luminance Check
+  // Evaluates effective parent background luminance dynamically and sets dark
+  // text when containers are light. Kept for reference and testing.
+  // ============================================================================
 
   /**
-   * Option 1: Contrast-Aware Luminance Check.
+   * [LEGACY / EXPERIMENTAL] Option 1: Contrast-Aware Luminance Check.
    * Walks text elements and evaluates their effective background.
    * If the effective background is light (relative luminance > 0.4), overrides the text color
-   * with a readable dark tone (#111827 for normal text, #0969da for links, #0f172a for headings)
-   * so text on white/light cards is crisp and legible without modifying the card backgrounds.
-   * If the effective background is dark (<= 0.4), theme light text applies naturally.
+   * with a readable dark tone (#111827 for normal text, #0969da for links, #0f172a for headings).
    *
    * @param {Object} theme - Active theme definition object.
    */
@@ -1137,10 +1139,13 @@
     });
   }
 
-  // --- Option 2: Scoped CSS & Dark Scheme (Pure CSS) ---
+  // ============================================================================
+  // [LEGACY / EXPERIMENTAL] Option 2: Scoped CSS & Dark Scheme (Pure CSS)
+  // Injects declarative color-scheme: dark and high-specificity selectors.
+  // ============================================================================
 
   /**
-   * Option 2: Scoped CSS & Dark Scheme.
+   * [LEGACY / EXPERIMENTAL] Option 2: Scoped CSS & Dark Scheme.
    * Injects declarative CSS rules with :root { color-scheme: dark !important; } and scopes
    * text colors inside explicit light/white containers so they remain readable dark text.
    *
@@ -1210,10 +1215,14 @@
     if (existing) existing.remove();
   }
 
-  // --- Option 3: Adaptive Surface Mapping (Layered Darkening) ---
+  // ============================================================================
+  // [DEFAULT] Primary Light-Page Strategy: Adaptive Surface Mapping
+  // Identifies light containers and maps them into layered VS Code dark surfaces
+  // (card/widget elevation, borders, and base background) while preserving hierarchy.
+  // ============================================================================
 
   /**
-   * Option 3: Adaptive Surface Mapping.
+   * [DEFAULT] Adaptive Surface Mapping.
    * Maps light containers into layered VS Code dark surfaces (base editor background,
    * card/widget surface, and borders) instead of flattening all containers.
    *
@@ -1350,8 +1359,14 @@
     el.style.setProperty('background-color', newBg, priority || '');
   }
 
+  // ============================================================================
+  // [DEFAULT] Primary Anti-Artifact Strategy: Top-Down Cascade
+  // Scans containers and sets intermediate layout wrapper divs to transparent,
+  // preventing dark-mode corner clipping and revealing wallpapers/sidebars.
+  // ============================================================================
+
   /**
-   * Top-Down Cascade Anti-Artifact Strategy.
+   * [DEFAULT] Top-Down Cascade Anti-Artifact Strategy.
    * Scans container elements and identifies intermediate wrapper elements that have
    * child elements, no direct text content, and no border-radius. Sets their background
    * to transparent so only innermost content containers/cards retain solid backgrounds.
@@ -1461,7 +1476,9 @@
       debounceTimer = setTimeout(function () {
         if (lightModeFix === 'luminance') {
           applyLuminanceFix(theme);
-        } else if (lightModeFix === 'adaptive') {
+        } else if (lightModeFix === 'scoped-css') {
+          // Pure CSS stylesheet rules handle this declaratively
+        } else if (lightModeFix !== 'none') {
           applyAdaptiveSurfaceMapping(theme);
           recolorTextForContrast(theme);
         }
@@ -1561,30 +1578,29 @@
     restoreForcedDarkBackgrounds();
     restoreRecoloredText();
 
-    // Determine active light mode readability fix strategy
-    var lightModeFix = settings.lightModeFix;
-    if (!lightModeFix) {
-      lightModeFix = settings.forceDarkBg ? "adaptive" : "none";
-    }
+    // Primary Light Page Strategy: Adaptive Surface Mapping with contrast recoloring (Default)
+    // Legacy / experimental options ('luminance', 'scoped-css') are retained for backwards compatibility or testing.
+    var lightModeFix = settings.lightModeFix || "adaptive";
 
     if (lightModeFix === "luminance") {
       applyLuminanceFix(settings.theme);
     } else if (lightModeFix === "scoped-css") {
       applyScopedCssFix(settings.theme);
-    } else if (lightModeFix === "adaptive") {
+    } else if (lightModeFix !== "none") {
+      // Default: Adaptive Surface Mapping with contrast-aware text recoloring
       applyAdaptiveSurfaceMapping(settings.theme);
       recolorTextForContrast(settings.theme);
     }
 
-    // Top-down cascade anti-artifact pass (default enabled)
+    // Primary Anti-Artifact Strategy: Top-Down Cascade (Default)
     const enableCascade = settings.cascadeFix !== false;
     restoreCornerFixes(settings.theme);
     if (enableCascade) {
       cornerFixCascade(settings.theme);
     }
 
-    // Keep body observer active if dynamic fix or cascade fix is enabled
-    if (lightModeFix === "luminance" || lightModeFix === "adaptive" || enableCascade) {
+    // Keep body observer active for dynamic DOM changes
+    if (lightModeFix !== "none" || enableCascade) {
       startBodyObserver(settings.theme, lightModeFix, enableCascade);
     } else {
       stopBodyObserver();

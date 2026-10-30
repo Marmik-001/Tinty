@@ -17,30 +17,8 @@ const builtinDarkGroup = document.getElementById("builtinDarkGroup");
 const builtinLightGroup = document.getElementById("builtinLightGroup");
 const customGroup = document.getElementById("customGroup");
 const openSettingsBtn = document.getElementById("openSettingsBtn");
-const lightModeFixSelect = document.getElementById("lightModeFixSelect");
-const lightModeFixHint = document.getElementById("lightModeFixHint");
-const cascadeFixToggle = document.getElementById("cascadeFixToggle");
 const statusEl = document.getElementById("status");
 const themeNameLabel = document.getElementById("themeNameLabel");
-
-/** Descriptions for each Light Mode Fix option. */
-const LIGHT_MODE_HINTS = {
-  none: "Default behavior (may have invisible text on white containers)",
-  luminance: "Option 1: Checks background luminance; renders dark text on white divs",
-  "scoped-css": "Option 2: Pure CSS; scopes text colors & injects color-scheme: dark",
-  adaptive: "Option 3: Maps light surfaces into layered VS Code dark surfaces",
-};
-
-/**
- * Updates the explanation hint below the Light Mode Fix dropdown.
- *
- * @param {string} val - Selected light mode fix key.
- */
-function updateLightModeHint(val) {
-  if (lightModeFixHint) {
-    lightModeFixHint.textContent = LIGHT_MODE_HINTS[val] || LIGHT_MODE_HINTS.none;
-  }
-}
 
 /** @type {string} Active tab domain hostname. */
 let currentHostname = "";
@@ -188,16 +166,6 @@ function loadSettings() {
       const disabledSites = settings.disabledSites || [];
       disableSiteToggle.checked = disabledSites.includes(currentHostname);
 
-      // Light page readability fix dropdown (default "none" or fallback from legacy forceDarkBg)
-      const fixVal = settings.lightModeFix || (settings.forceDarkBg ? "adaptive" : "none");
-      if (lightModeFixSelect) {
-        lightModeFixSelect.value = fixVal;
-        updateLightModeHint(fixVal);
-      }
-
-      // Top-down cascade fix toggle (default on)
-      cascadeFixToggle.checked = settings.cascadeFix !== false;
-
       const customThemes = settings.customThemes || [];
       const customImages = settings.customImages || [];
       const customCombos = settings.customCombos || [];
@@ -258,29 +226,6 @@ enabledToggle.addEventListener("change", () => {
 
 /** Listener for current domain exclusion toggle. */
 disableSiteToggle.addEventListener("change", saveDisabledSitesOnly);
-
-/** Listener for Light Page Readability fix dropdown. */
-if (lightModeFixSelect) {
-  lightModeFixSelect.addEventListener("change", () => {
-    const val = lightModeFixSelect.value;
-    updateLightModeHint(val);
-    chrome.storage.local.set(
-      {
-        lightModeFix: val,
-        forceDarkBg: val !== "none", // maintain backwards compatibility
-      },
-      () => {
-        const label = lightModeFixSelect.options[lightModeFixSelect.selectedIndex].text;
-        setStatus(`Applied ${label}`, false);
-      }
-    );
-  });
-}
-
-/** Listener for top-down cascade fix toggle. */
-cascadeFixToggle.addEventListener("change", () => {
-  chrome.storage.local.set({ cascadeFix: cascadeFixToggle.checked });
-});
 
 // Initialize popup logic on DOM load
 getActiveTabHostname((hostname) => {
