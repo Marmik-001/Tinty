@@ -194,10 +194,33 @@ Claude.ai's chat interface pins the prompt input using a sticky bottom container
 
 ---
 
+## 🐛 Known Issue: Scroll Repaint Lag (`background-attachment: fixed`)
+
+### The Problem
+When custom background images or wallpaper combos are active, page scrolling feels heavy, sticky, or drops frames (especially on large screens or image-heavy pages).
+
+### Root Cause
+`content.js` applies `background-attachment: fixed !important` to `html, body, ${APP_ROOT_SELECTOR}`.
+In Chromium / Blink engines, `background-attachment: fixed` disables GPU compositor tile scrolling. Instead of moving cached GPU texture layers on the compositor thread (60–120 FPS), Chromium must invalidate the entire viewport on every scroll frame and force the CPU/GPU to re-rasterize and repaint the multi-megabyte image over the window coordinates.
+
+---
+
+## 🐛 Known Issue: MutationObserver Layout Thrashing During Scrolling
+
+### The Problem
+On complex or dynamic websites (Gmail, YouTube, Twitter/X, infinite-scroll feeds), scrolling can cause micro-stutters or CPU spikes.
+
+### Root Cause
+Dynamic sites frequently mutate the DOM as you scroll (updating virtualized rows, hover states, scroll indicators). The body `MutationObserver` triggers `applyAdaptiveSurfaceMapping`, `recolorTextForContrast`, and `cornerFixCascade`. These functions query `getComputedStyle()` across hundreds of DOM nodes and up to 60 ancestor levels per text node. Modifying styles and immediately querying computed geometry triggers **Forced Synchronous Layout (Layout Thrashing)** on the main browser thread.
+
+---
+
 ## 📋 Other Known Limitations
 
 | Issue | File | Description |
 |---|---|---|
+| Scroll Repaint Lag (`fixed` bg) | `content.js` | `background-attachment: fixed` disables GPU compositor scrolling, forcing software repaints on every scroll frame. |
+| Layout Thrashing on Scroll | `content.js` | `MutationObserver` calling `getComputedStyle` in deep DOM loops during dynamic scroll events. |
 | YouTube Ambient Mode bleed | `content.js` | YouTube's cinematics ambient canvas vignette bleeds a dark mask ~3s into playback below the video player. Temporary workaround: toggle Ambient mode Off in player settings. |
 | Claude.ai chat scroll mask | `content.js` | Sticky bottom chat container and gradient fade overlay render an opaque dark layer when scrolling up through chat history. |
 | `include` field not resolved | `theme-parser.js` | VS Code themes using `"include": "./base-theme.json"` to inherit from a base theme cannot resolve the referenced file — only the top-level theme's own colors are used. |
