@@ -951,25 +951,31 @@
    * effective background. Only intervenes on elements where contrast is actually
    * bad — leaves everything else untouched.
    *
-   * This runs AFTER overrideLightBackgrounds, so it sees the post-override state.
+   * Batches all computed style reads in Phase 1 before applying any inline style writes in Phase 2
+   * to eliminate forced synchronous layout thrashing during dynamic DOM updates.
    *
    * @param {Object} theme - Active theme definition object.
+   * @param {Element|Document} [rootNode] - Optional subtree root to scope query (defaults to document).
    */
-  function recolorTextForContrast(theme) {
+  function recolorTextForContrast(theme, rootNode) {
     if (!theme) return;
 
-    var palette = buildFullPalette(theme);
-
+    var target = rootNode || document;
     var elements;
     try {
-      elements = document.querySelectorAll(TEXT_SELECTOR);
+      elements = target.querySelectorAll ? target.querySelectorAll(TEXT_SELECTOR) : [];
+      if (target.matches && target.matches(TEXT_SELECTOR)) {
+        elements = [target, ...elements];
+      }
     } catch (e) {
       return;
     }
 
-    // Cache: bgColor string → best color (avoids re-computation for same bg)
+    var palette = buildFullPalette(theme);
     var colorCache = {};
+    var toRecolor = [];
 
+    // --- Phase 1: Batched Reads ---
     elements.forEach(function (el) {
       // Skip code blocks (handled by Shiki/class-based passes)
       try {
@@ -1011,18 +1017,25 @@
       // If current contrast is already good, leave it alone
       if (contrastRatio(currentRgb, bgRgb) >= 4.5) return;
 
-      // Contrast is bad — store original for restoration and fix it
-      if (!el.hasAttribute(TEXT_ORIG_ATTR)) {
-        el.setAttribute(TEXT_ORIG_ATTR, currentColorStr);
-      }
-
       // Find best color with good contrast against this background
       var cacheKey = bgRgb.join(',');
       if (!(cacheKey in colorCache)) {
         colorCache[cacheKey] = findBestContrastColor(bgRgb, palette);
       }
 
-      el.style.setProperty('color', colorCache[cacheKey], 'important');
+      toRecolor.push({
+        el: el,
+        orig: currentColorStr,
+        newColor: colorCache[cacheKey]
+      });
+    });
+
+    // --- Phase 2: Batched Writes (Zero Layout Thrashing) ---
+    toRecolor.forEach(function (item) {
+      if (!item.el.hasAttribute(TEXT_ORIG_ATTR)) {
+        item.el.setAttribute(TEXT_ORIG_ATTR, item.orig);
+      }
+      item.el.style.setProperty('color', item.newColor, 'important');
     });
   }
 
@@ -1059,18 +1072,29 @@
    * If the effective background is light (relative luminance > 0.4), overrides the text color
    * with a readable dark tone (#111827 for normal text, #0969da for links, #0f172a for headings).
    *
+   * Batches all computed style reads in Phase 1 before applying any inline style writes in Phase 2
+   * to eliminate forced synchronous layout thrashing during dynamic DOM updates.
+   *
    * @param {Object} theme - Active theme definition object.
+   * @param {Element|Document} [rootNode] - Optional subtree root to scope query (defaults to document).
    */
-  function applyLuminanceFix(theme) {
+  function applyLuminanceFix(theme, rootNode) {
     if (!theme) return;
 
+    var target = rootNode || document;
     var elements;
     try {
-      elements = document.querySelectorAll(TEXT_SELECTOR);
+      elements = target.querySelectorAll ? target.querySelectorAll(TEXT_SELECTOR) : [];
+      if (target.matches && target.matches(TEXT_SELECTOR)) {
+        elements = [target, ...elements];
+      }
     } catch (e) {
       return;
     }
 
+    var toUpdate = [];
+
+    // --- Phase 1: Batched Reads ---
     elements.forEach(function (el) {
       // Skip code blocks (handled by syntax highlighting)
       try {
@@ -1098,31 +1122,37 @@
       var lum = relativeLuminance(bgRgb);
 
       if (lum > 0.4) {
-        // Effective background is light! Text MUST be dark to be legible.
+        var isLink = el.tagName === 'A' || el.closest('a');
+        var isHeading = /^H[1-6]$/i.test(el.tagName);
+        var targetColor = isLink ? '#0969da' : (isHeading ? '#0f172a' : '#111827');
+        toUpdate.push({ el: el, action: 'set', color: targetColor });
+      } else if (el.hasAttribute(LUMINANCE_FIX_ATTR)) {
+        toUpdate.push({ el: el, action: 'restore' });
+      }
+    });
+
+    // --- Phase 2: Batched Writes (Zero Layout Thrashing) ---
+    toUpdate.forEach(function (item) {
+      var el = item.el;
+      if (item.action === 'set') {
         if (!el.hasAttribute(LUMINANCE_FIX_ATTR)) {
           var prevInline = el.style.getPropertyValue('color');
           var prevPrio = el.style.getPropertyPriority('color');
           el.setAttribute(LUMINANCE_FIX_ATTR, (prevPrio ? '!important:' : '') + (prevInline || '__NONE__'));
         }
-        var isLink = el.tagName === 'A' || el.closest('a');
-        var isHeading = /^H[1-6]$/i.test(el.tagName);
-        var targetColor = isLink ? '#0969da' : (isHeading ? '#0f172a' : '#111827');
-        el.style.setProperty('color', targetColor, 'important');
-      } else {
-        // Effective background is dark. If it was previously marked by luminance fix, restore it.
-        if (el.hasAttribute(LUMINANCE_FIX_ATTR)) {
-          var saved = el.getAttribute(LUMINANCE_FIX_ATTR);
-          if (saved && saved !== '__NONE__') {
-            if (saved.startsWith('!important:')) {
-              el.style.setProperty('color', saved.slice(11), 'important');
-            } else {
-              el.style.setProperty('color', saved);
-            }
+        el.style.setProperty('color', item.color, 'important');
+      } else if (item.action === 'restore') {
+        var saved = el.getAttribute(LUMINANCE_FIX_ATTR);
+        if (saved && saved !== '__NONE__') {
+          if (saved.startsWith('!important:')) {
+            el.style.setProperty('color', saved.slice(11), 'important');
           } else {
-            el.style.removeProperty('color');
+            el.style.setProperty('color', saved);
           }
-          el.removeAttribute(LUMINANCE_FIX_ATTR);
+        } else {
+          el.style.removeProperty('color');
         }
+        el.removeAttribute(LUMINANCE_FIX_ATTR);
       }
     });
   }
@@ -1239,14 +1269,22 @@
    * Maps light containers into layered VS Code dark surfaces (base editor background,
    * card/widget surface, and borders) instead of flattening all containers.
    *
+   * Batches all computed style reads in Phase 1 before applying any inline style writes in Phase 2
+   * to eliminate forced synchronous layout thrashing during dynamic DOM updates.
+   *
    * @param {Object} theme - Active theme definition object.
+   * @param {Element|Document} [rootNode] - Optional subtree root to scope query (defaults to document).
    */
-  function applyAdaptiveSurfaceMapping(theme) {
+  function applyAdaptiveSurfaceMapping(theme, rootNode) {
     if (!theme) return;
 
+    var target = rootNode || document;
     var containers;
     try {
-      containers = document.querySelectorAll(CONTAINER_SELECTOR);
+      containers = target.querySelectorAll ? target.querySelectorAll(CONTAINER_SELECTOR) : [];
+      if (target.matches && target.matches(CONTAINER_SELECTOR)) {
+        containers = [target, ...containers];
+      }
     } catch (e) {
       return;
     }
@@ -1256,6 +1294,9 @@
     var borderColor = theme.border || '#3c3c3c';
     var isImageOrCombo = theme.type === 'image' || theme.type === 'combo';
 
+    var toUpdate = [];
+
+    // --- Phase 1: Batched Reads ---
     containers.forEach(function (el) {
       if (el.hasAttribute(ADAPTIVE_SURFACE_ATTR)) return;
       if (el === document.body || el === document.documentElement) return;
@@ -1284,26 +1325,44 @@
         var prevBg = el.style.getPropertyValue('background-color');
         var prevBorder = el.style.getPropertyValue('border-color');
 
-        el.setAttribute(ADAPTIVE_SURFACE_ATTR, JSON.stringify({
-          bg: prevBg,
-          border: prevBorder
-        }));
+        var newBg;
+        var newBorder = null;
 
         if (isImageOrCombo) {
           if (isCard) {
-            el.style.setProperty('background-color', 'rgba(30, 30, 30, 0.75)', 'important');
-            if (hasBorder > 0) el.style.setProperty('border-color', borderColor, 'important');
+            newBg = 'rgba(30, 30, 30, 0.75)';
+            if (hasBorder > 0) newBorder = borderColor;
           } else {
-            el.style.setProperty('background-color', 'transparent', 'important');
+            newBg = 'transparent';
           }
         } else {
           if (isCard) {
-            el.style.setProperty('background-color', cardBg, 'important');
-            if (hasBorder > 0) el.style.setProperty('border-color', borderColor, 'important');
+            newBg = cardBg;
+            if (hasBorder > 0) newBorder = borderColor;
           } else {
-            el.style.setProperty('background-color', baseBg, 'important');
+            newBg = baseBg;
           }
         }
+
+        toUpdate.push({
+          el: el,
+          prevBg: prevBg,
+          prevBorder: prevBorder,
+          newBg: newBg,
+          newBorder: newBorder
+        });
+      }
+    });
+
+    // --- Phase 2: Batched Writes (Zero Layout Thrashing) ---
+    toUpdate.forEach(function (item) {
+      item.el.setAttribute(ADAPTIVE_SURFACE_ATTR, JSON.stringify({
+        bg: item.prevBg,
+        border: item.prevBorder
+      }));
+      item.el.style.setProperty('background-color', item.newBg, 'important');
+      if (item.newBorder) {
+        item.el.style.setProperty('border-color', item.newBorder, 'important');
       }
     });
   }
@@ -1384,18 +1443,29 @@
    * child elements, no direct text content, and no border-radius. Sets their background
    * to transparent so only innermost content containers/cards retain solid backgrounds.
    *
+   * Batches all computed style reads in Phase 1 before applying any inline style writes in Phase 2
+   * to eliminate forced synchronous layout thrashing during dynamic DOM updates.
+   *
    * @param {Object} theme - Active theme definition object.
+   * @param {Element|Document} [rootNode] - Optional subtree root to scope query (defaults to document).
    */
-  function cornerFixCascade(theme) {
+  function cornerFixCascade(theme, rootNode) {
     if (!theme) return;
 
+    var target = rootNode || document;
     var elements;
     try {
-      elements = document.querySelectorAll(CORNER_ELEMENT_SELECTOR);
+      elements = target.querySelectorAll ? target.querySelectorAll(CORNER_ELEMENT_SELECTOR) : [];
+      if (target.matches && target.matches(CORNER_ELEMENT_SELECTOR)) {
+        elements = [target, ...elements];
+      }
     } catch (e) {
       return;
     }
 
+    var toFix = [];
+
+    // --- Phase 1: Batched Reads ---
     elements.forEach(function (el) {
       if (el.hasAttribute(CORNER_FIX_ATTR)) return;
       if (el === document.body || el === document.documentElement) return;
@@ -1430,6 +1500,11 @@
       // Only modify wrapper elements that contain child elements
       if (!el.children || el.children.length === 0) return;
 
+      toFix.push(el);
+    });
+
+    // --- Phase 2: Batched Writes (Zero Layout Thrashing) ---
+    toFix.forEach(function (el) {
       applyCornerFixBg(el, 'transparent', 'important');
     });
   }
@@ -1470,9 +1545,15 @@
 
   /** @type {MutationObserver|null} Observer for dynamically added elements when force-dark or cascade fix is on. */
   var bodyObserver = null;
+  /** @type {number|null} Active debounce timeout id for body observer. */
+  var bodyObserverDebounceTimer = null;
+  /** @type {number|null} Active requestIdleCallback handle for body observer. */
+  var bodyObserverIdleHandle = null;
 
   /**
-   * Starts a MutationObserver on document.body to handle dynamically added elements.
+   * Starts an optimized MutationObserver on document.body to handle dynamically added subtrees.
+   * Scopes style calculations strictly to mutation.addedNodes and batches DOM reads before writes,
+   * completely eliminating layout thrashing and frame drops during scrolling and dynamic loading.
    *
    * @param {Object} theme - Active theme definition object.
    * @param {string} lightModeFix - Active light mode readability fix mode ('none', 'luminance', 'scoped-css', 'adaptive').
@@ -1482,33 +1563,91 @@
     stopBodyObserver();
     if (!document.body) return;
 
-    var debounceTimer = null;
-    bodyObserver = new MutationObserver(function () {
-      // Debounce to avoid thrashing on rapid DOM changes
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(function () {
+    var pendingAddedNodes = new Set();
+
+    function processAddedNodes() {
+      bodyObserverIdleHandle = null;
+      if (pendingAddedNodes.size === 0) return;
+
+      var nodesToProcess = Array.from(pendingAddedNodes);
+      pendingAddedNodes.clear();
+
+      for (var i = 0; i < nodesToProcess.length; i++) {
+        var node = nodesToProcess[i];
+        if (!node.isConnected) continue;
+
         if (lightModeFix === 'luminance') {
-          applyLuminanceFix(theme);
+          applyLuminanceFix(theme, node);
         } else if (lightModeFix === 'scoped-css') {
-          // Pure CSS stylesheet rules handle this declaratively
+          // Handled declaratively by injected CSS stylesheet
         } else if (lightModeFix !== 'none') {
-          applyAdaptiveSurfaceMapping(theme);
-          recolorTextForContrast(theme);
+          applyAdaptiveSurfaceMapping(theme, node);
+          recolorTextForContrast(theme, node);
         }
-        restoreCornerFixes(theme);
-        if (enableCascade) cornerFixCascade(theme);
+
+        if (enableCascade) {
+          cornerFixCascade(theme, node);
+        }
+      }
+    }
+
+    bodyObserver = new MutationObserver(function (mutations) {
+      var hasNewNodes = false;
+
+      for (var i = 0; i < mutations.length; i++) {
+        var added = mutations[i].addedNodes;
+        for (var j = 0; j < added.length; j++) {
+          var node = added[j];
+          // Process only element subtrees, ignoring text, comments, and extension-created elements
+          if (
+            node.nodeType === 1 &&
+            node.id !== STYLE_ID &&
+            node.id !== BACKDROP_ID &&
+            node.id !== SCOPED_CSS_FIX_ID
+          ) {
+            pendingAddedNodes.add(node);
+            hasNewNodes = true;
+          }
+        }
+      }
+
+      if (!hasNewNodes) return;
+
+      // Debounce and defer work to browser idle periods to prevent scroll jank
+      if (bodyObserverDebounceTimer) clearTimeout(bodyObserverDebounceTimer);
+      if (bodyObserverIdleHandle && typeof cancelIdleCallback === 'function') {
+        cancelIdleCallback(bodyObserverIdleHandle);
+        bodyObserverIdleHandle = null;
+      }
+
+      bodyObserverDebounceTimer = setTimeout(function () {
+        bodyObserverDebounceTimer = null;
+        if (typeof requestIdleCallback === 'function') {
+          bodyObserverIdleHandle = requestIdleCallback(processAddedNodes, { timeout: 200 });
+        } else {
+          processAddedNodes();
+        }
       }, 150);
     });
+
     bodyObserver.observe(document.body, { childList: true, subtree: true });
   }
 
   /**
-   * Stops the body MutationObserver if active.
+   * Stops the body MutationObserver if active and cancels pending idle/debounce callbacks.
    */
   function stopBodyObserver() {
     if (bodyObserver) {
       bodyObserver.disconnect();
       bodyObserver = null;
+    }
+    if (bodyObserverDebounceTimer) {
+      clearTimeout(bodyObserverDebounceTimer);
+      bodyObserverDebounceTimer = null;
+    }
+    if (bodyObserverIdleHandle && typeof cancelIdleCallback === 'function') {
+      cancelIdleCallback(bodyObserverIdleHandle);
+      bodyObserverIdleHandle = null;
     }
   }
 
