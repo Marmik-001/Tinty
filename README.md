@@ -86,12 +86,9 @@ Tinty is 100% free, open-source, and runs on all modern Chromium browsers (**Goo
 5. **Pin to Toolbar**:
    * Click the puzzle icon 🧩 in your browser toolbar and pin **Tinty** for quick one-click access!
 
-<!-- Optional visual install walkthrough GIF -->
-<!--
 <p align="center">
-  <img src="assets/screenshots/install-guide.gif" alt="Installation Walkthrough" width="600" />
+  <img src="assets/screenshots/install-guide.gif" alt="Installation Walkthrough" width="700" />
 </p>
--->
 
 ---
 
