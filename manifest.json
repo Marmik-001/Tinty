@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "ThemeReader — Browse pages in your VS Code theme",
+  "name": "Tinty — Tint your web, your way",
   "version": "0.7.0",
-  "description": "Recolors the pages you read using your own VS Code theme (or a built-in palette / background image) for a consistent, easier-on-the-eyes reading experience.",
+  "description": "Recolor the web using your favorite VS Code theme, custom wallpapers, or hybrid ambient backdrops.",
   "permissions": ["storage", "activeTab", "unlimitedStorage"],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ThemeReader"
+    "default_title": "Tinty"
   },
   "options_ui": {
     "page": "options.html",

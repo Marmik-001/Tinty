@@ -1,102 +1,159 @@
-# ThemeReader (v0.7.0)
+<div align="center">
 
-> **Recolor the pages you read using your favorite VS Code theme, curated palettes, or custom background images.**
+# 🎨 Tinty
 
-**ThemeReader** is a Manifest V3 browser extension for Chromium browsers (Chrome, Brave, Edge, Opera, Vivaldi) that recolors technical documentation, blogs, and articles with authentic VS Code theme colors and syntax highlighting.
+### *Tint your web, your way.*
 
-Built with plain JavaScript, HTML5, and CSS3 — **no build step, no framework overhead, zero telemetry**.
+**Browse documentation, blogs, and the internet in your favorite VS Code theme and wallpapers.**
 
----
+[![Manifest V3](https://img.shields.io/badge/Manifest-V3-brightgreen.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-orange.svg)](#)
+[![Works on](https://img.shields.io/badge/Browsers-Chrome%20%7C%20Brave%20%7C%20Edge%20%7C%20Opera-purple.svg)](#)
 
-## 🌟 Highlights & Features
+<br />
 
-- 🎨 **Use Any VS Code Theme**: Upload your own theme `.json` or `.jsonc` file (exported from VS Code, extensions, or GitHub).
-- 📦 **10 Bundled Built-in Themes**: Dracula, One Dark, Monokai, Solarized (Dark/Light), Nord, Gruvbox Dark, Night Owl, Tokyo Night, and Catppuccin Mocha.
-- 💻 **Authentic Code Syntax Highlighting**: Remaps class-based highlighters (*highlight.js*, *Prism.js*, *CodeMirror*, *GitHub Primer*) and runs a fast hue-matching pass for inline-styled code blocks (*Shiki*, *Astro*, *VitePress*, *Docusaurus 2+*).
-- 🖼️ **Background Image & Combo Mode**: Layer page content over your desktop wallpaper or combine a theme's syntax colors with a translucent background image.
-- ⚡ **Instant Live Updates**: Theme switches apply immediately across all open tabs without needing a page refresh.
-- 🌐 **Shadow DOM & Design System Support**: Redefines CSS custom properties at `:root` for complex sites like MDN (`developer.mozilla.org`) to recolor custom elements sealed inside Shadow DOM boundaries.
-- 🔒 **Privacy First & Offline**: All themes and settings are stored locally in your browser (`chrome.storage.local`). No external requests or data collection.
+<!-- Hero Preview Image -->
+<p align="center">
+  <img src="assets/screenshots/hero-preview.png" alt="Tinty Hero Preview" width="850" />
+</p>
 
----
-
-## 🚀 Installation (Developer Mode / Unpacked)
-
-1. Download or clone this repository to your local machine.
-2. Open your browser's extensions management page:
-   - **Chrome**: `chrome://extensions`
-   - **Brave**: `brave://extensions`
-   - **Edge**: `edge://extensions`
-3. Enable **Developer mode** using the toggle in the top-right corner.
-4. Click **Load unpacked** and select the `vscode-theme-reader` project directory.
-5. Click the ThemeReader icon in your browser toolbar to open the popup.
+</div>
 
 ---
 
-## 📖 How to Use
+## ✨ Features
 
-### 1. Toolbar Popup (`popup.html`)
-Click the toolbar icon for quick controls:
-- **Global Toggle**: Turn ThemeReader on or off instantly.
-- **Site Exclude**: Toggle "Disable on this site" for domain-specific exclusions.
-- **Theme Selector**: Pick between Built-in Dark, Built-in Light, or your custom saved themes/images.
-- **Settings Button**: Open the full Settings tab page to manage your library.
-
-### 2. Settings Page (`options.html`)
-Open Settings from the popup or extension management page to:
-- **Add a VS Code Theme**: Upload a `.json` or `.jsonc` theme file and name it.
-- **Add a Background Image**: Upload an image file for a customized wallpaper reader experience.
-- **Create a Background + Theme Combo**: Combine a background image with a full VS Code theme (syntax highlighting + text colors layered over translucent background tint).
-- **Manage Saved Library**: View swatches, apply themes, or delete saved items.
+* **🎨 Import Any VS Code Theme** — Drag & drop your favorite `.json` or `.vsix` theme file and read technical blogs, docs, and forums with authentic syntax highlighting and editor tones.
+* **🖼️ Use Any Image as Background** — Turn any desktop wallpaper into an ambient browsing backdrop powered by an isolated hardware-accelerated layer with zero scroll lag.
+* **🔮 Mix & Combine (Combo Mode)** — Layer your theme's code highlights and dark surface cards over a translucent wallpaper tint for the ultimate aesthetic setup.
 
 ---
 
-## ⚙️ How Code Block Recoloring Works
+## 📸 Showcase
 
-ThemeReader handles syntax highlighting on technical doc sites using a two-tiered approach:
+<div align="center">
 
-1. **Class-Based Highlighters (highlight.js, Prism, CodeMirror, GitHub Primer)**:
-   Remaps standard token CSS classes (`.hljs-keyword`, `.token.string`, `.cm-def`, `.pl-k`) to VS Code theme syntax colors via CSS rules. Zero runtime JS overhead.
-2. **Inline-Styled Highlighters (Shiki, VitePress, Astro, Docusaurus 2+)**:
-   Shiki bakes inline `style="color:#hex"` attributes into tokens at build time. ThemeReader runs a single, bounded JS pass on `<pre>` and `<code>` elements. It converts original inline colors to HSL and maps each color to the closest matching theme token role based on hue distance.
+| Theme Only (Clean Dark Mode) | Theme + Wallpaper Combo |
+|:---:|:---:|
+| <img src="assets/screenshots/theme-only.png" alt="Theme Only" width="420" /> | <img src="assets/screenshots/theme-combo.png" alt="Theme Combo" width="420" /> |
+
+| Extension Toolbar Popup | Theme Library & Settings |
+|:---:|:---:|
+| <img src="assets/screenshots/popup-ui.png" alt="Popup UI" width="420" /> | <img src="assets/screenshots/options-ui.png" alt="Options UI" width="420" /> |
+
+</div>
 
 ---
 
-## 📁 Repository & Codebase Structure
+## 🚀 Installation Guide
 
-For detailed architectural diagrams, function breakdowns, and storage schemas, please refer to **[STRUCTURE.md](file:///home/master/Desktop/vscode-theme-reader-v0.7.0/vscode-theme-reader/STRUCTURE.md)**.
+Tinty is 100% free, open-source, and runs on all modern Chromium browsers (**Google Chrome, Brave, Microsoft Edge, Opera, Vivaldi**).
+
+> [!IMPORTANT]
+> **Save the folder in a permanent location!**
+> Do **NOT** install directly from a temporary `Downloads/` or `Desktop/` trash folder. Move the extracted folder to a permanent path like `~/Documents/extensions/tinty` or `C:\tools\tinty\`. If the folder is moved or deleted, your browser will automatically disable and remove the extension.
+
+### Step-by-Step Instructions
+
+1. **Download the Extension**:
+   * Click the green **Code → Download ZIP** button above (or download `tinty-v0.7.0.zip` from [Releases](https://github.com/your-username/tinty/releases)).
+   * Extract the ZIP file and move the folder to a permanent folder on your computer.
+
+2. **Open the Extensions Page in Your Browser**:
+   * **Chrome**: `chrome://extensions`
+   * **Brave**: `brave://extensions`
+   * **Edge**: `edge://extensions`
+
+3. **Enable Developer Mode**:
+   * Toggle the **Developer mode** switch in the top-right corner of the extensions page.
+
+4. **Load the Extension**:
+   * Click **Load unpacked** (top-left).
+   * Select the folder containing `manifest.json`.
+
+5. **Pin to Toolbar**:
+   * Click the puzzle icon 🧩 in your browser toolbar and pin **Tinty** for quick one-click access!
+
+<!-- Optional visual install walkthrough GIF -->
+<!--
+<p align="center">
+  <img src="assets/screenshots/install-guide.gif" alt="Installation Walkthrough" width="600" />
+</p>
+-->
+
+---
+
+## ⚡ Quick Start: How to Export Your VS Code Theme
+
+You can export and use whatever theme you are currently rocking in VS Code in less than 30 seconds:
+
+<p align="center">
+  <img src="assets/screenshots/vscode-export-guide.png" alt="How to export theme in VS Code" width="700" />
+</p>
+
+### Method 1: Export Current Theme directly from VS Code (Easiest)
+1. Open VS Code.
+2. Open the Command Palette: `Ctrl + Shift + P` (or `Cmd + Shift + P` on macOS).
+3. Type and select: **`Developer: Generate Color Theme From Current Settings`**.
+4. VS Code opens a new editor tab containing your complete, active theme JSON.
+5. Save this file (`Ctrl + S` or `Cmd + S`) as `my-theme.json`.
+6. In your browser, click **Tinty → Settings → Add a VS Code theme**, choose your saved file, and click **Save theme**!
+
+### Method 2: From Installed Extensions Directory
+If you have a theme installed from the VS Code Marketplace, its original `.json` file is already saved locally on your drive:
+* **Linux / macOS**: `~/.vscode/extensions/<publisher.theme-name>/themes/`
+* **Windows**: `C:\Users\<YourUsername>\.vscode\extensions\<publisher.theme-name>\themes\`
+
+### Method 3: Use Built-in Presets
+Don't have VS Code handy? Tinty comes bundled with **10 classic community presets**:
+* Dracula, One Dark, Monokai, Nord, Gruvbox Dark, Night Owl, Tokyo Night, Catppuccin Mocha, Solarized Dark & Solarized Light.
+
+---
+
+## 🛠️ Developer Guide & Architecture
+
+Tinty is built with pure, modern web standards — **zero dependencies, zero bundlers, and zero build steps**:
 
 ```
-vscode-theme-reader/
+tinty/
 ├── manifest.json          # Manifest V3 extension configuration
-├── content.js             # Recolor content script injected into web pages
-├── theme-parser.js        # VS Code theme JSON parser & color mapping logic
-├── builtin-themes.js      # Bundled preset themes data
-├── popup.html/.js/.css    # Toolbar popup interface
-├── options.html/.js/.css  # Full-tab Settings & Theme Library management page
-├── STRUCTURE.md           # Deep-dive architecture & function reference guide
-└── IMPROVEMENTS.md        # Technical roadmap, performance tips & contribution guide
+├── content.js             # High-performance page recleaning & theme engine
+├── theme-parser.js        # VS Code theme JSON parser & syntax token mapper
+├── builtin-themes.js      # Bundled popular theme presets
+├── popup.html / .js / .css# Quick toolbar toggle & theme switcher
+├── options.html / .js / .css# Full library manager & offscreen canvas compressor
+├── assets/                # Screenshots, banners, and preview assets
+└── KNOWN_ISSUES.md        # Architecture decisions, benchmarks & solutions
 ```
 
+### Key Technical Highlights:
+* **Hardware-Accelerated Backdrop Layer**: Wallpapers render on an isolated `#vstr-backdrop-layer` directly on `document.documentElement`, keeping GPU compositor tile scrolling at 60–120 FPS.
+* **Layout Thrashing Elimination**: The dynamic DOM observer uses two-phase batching (all `getComputedStyle` reads happen in Phase 1 before any inline style writes in Phase 2) scheduled via `requestIdleCallback`.
+* **Client-Side Offscreen Compression**: Large 4K/8K images are downscaled to 1080p and compressed to WebP (quality 0.85) via an offscreen HTML5 canvas before storing in `chrome.storage.local`.
+* **Privacy by Design**: Stored 100% locally on your machine. Zero telemetry, zero analytics, zero external network requests.
+
+### Local Development:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/tinty.git
+   ```
+2. Make your edits in `content.js`, `popup.js`, or `options.js`.
+3. Go to `chrome://extensions` and click the refresh 🔄 icon on the Tinty card. Changes reflect instantly!
+
 ---
 
-## 🛠️ Data Storage
+## 🤝 Contributing
 
-All data is stored locally in `chrome.storage.local`. The extension requests `unlimitedStorage` in `manifest.json` to safely accommodate high-resolution Base64 background images without hitting Chrome's default 5MB storage limit.
-
-For details on storage keys and schema objects, see **[STRUCTURE.md](file:///home/master/Desktop/vscode-theme-reader-v0.7.0/vscode-theme-reader/STRUCTURE.md#3-data-storage--persistence-model)**.
-
----
-
-## 🤝 Contributing & Roadmap
-
-Thinking of contributing or extending ThemeReader? Check out **[IMPROVEMENTS.md](file:///home/master/Desktop/vscode-theme-reader-v0.7.0/vscode-theme-reader/IMPROVEMENTS.md)** for:
-- Open-source contribution guidelines & setup
-- Planned features (Firefox port, Marketplace API import, Contrast checker)
-- Performance & DOM optimization ideas
+Contributions, feedback, and issue reports are very welcome!
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`).
+4. Push to the branch (`git push origin feature/amazing-feature`).
+5. Open a Pull Request.
 
 ---
 
 ## 📜 License
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
